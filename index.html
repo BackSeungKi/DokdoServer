@@ -1,1396 +1,410 @@
 <!DOCTYPE html>
-<html lang="ko" class="dark">
+<html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DOKDO - Clan Management Dashboard</title>
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- FontAwesome Icons -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <!-- Google Fonts: Inter & Rajdhani for Gaming Aesthetic -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DOKDO - VAMPIR CLAN SYSTEM</title>
 
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['Inter', 'sans-serif'],
-            display: ['Rajdhani', 'sans-serif'],
-          },
-          colors: {
-            brand: {
-              dark: '#0B0F19',
-              card: '#111827',
-              border: '#1F2937',
-              accent: '#06B6D4',
-              gold: '#F59E0B',
-              goldHover: '#D97706',
-              purple: '#8B5CF6',
-              danger: '#EF4444'
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        darkBg: '#0b0f19',
+                        cardBg: '#131b2e',
+                        borderBg: '#1e293b',
+                        gold: '#f59e0b',
+                        cyanAccent: '#06b6d4',
+                    }
+                }
             }
-          }
         }
-      }
-    }
-  </script>
-
-  <style>
-    /* Custom Scrollbars */
-    ::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
-    }
-    ::-webkit-scrollbar-track {
-      background: #0B0F19;
-    }
-    ::-webkit-scrollbar-thumb {
-      background: #1F2937;
-      border-radius: 3px;
-    }
-    ::-webkit-scrollbar-thumb:hover {
-      background: #06B6D4;
-    }
-
-    /* Glow utilities */
-    .glow-gold {
-      box-shadow: 0 0 15px rgba(245, 158, 11, 0.25);
-    }
-    .glow-cyan {
-      box-shadow: 0 0 15px rgba(6, 182, 212, 0.25);
-    }
-    .glow-purple {
-      box-shadow: 0 0 15px rgba(139, 92, 246, 0.25);
-    }
-
-    /* Canvas sizing for ladder game */
-    #ladderCanvas {
-      background: #111827;
-      border-radius: 0.5rem;
-      cursor: pointer;
-    }
-  </style>
-
-  <!-- Firebase Integration Script -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { 
-      getAuth, 
-      signInAnonymously, 
-      signInWithCustomToken 
-    } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { 
-      getFirestore, 
-      doc, 
-      setDoc, 
-      onSnapshot 
-    } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-    // Application ID and Default Config fallback
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'dokdo-clan-v1';
+    </script>
     
-    let firebaseConfig = {};
-    try {
-      if (typeof __firebase_config !== 'undefined' && __firebase_config) {
-        firebaseConfig = JSON.parse(__firebase_config);
-      } else {
-        firebaseConfig = {
-          apiKey: "demo-api-key",
-          authDomain: "demo-app.firebaseapp.com",
-          projectId: "demo-app",
-          storageBucket: "demo-app.appspot.com",
-          messagingSenderId: "123456789",
-          appId: "1:123456789:web:demo"
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Firebase App & Firestore SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // Firebase Configuration (Standard Public Config for Artifact Apps)
+        const firebaseConfig = {
+            apiKey: "AIzaSyDummyKey_For_Static_Canvas_App",
+            authDomain: "clan-dokdo-app.firebaseapp.com",
+            projectId: "clan-dokdo-app",
+            storageBucket: "clan-dokdo-app.appspot.com",
+            messagingSenderId: "123456789012",
+            appId: "1:123456789012:web:abcdef123456789"
         };
-      }
-    } catch(e) {
-      console.warn("Firebase Config fallback active:", e);
-    }
 
-    let app, db, auth;
-    let currentUser = null;
-    let isFirebaseReady = false;
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
 
-    // Active User Role state: 'admin', 'member', or null (locked)
-    window.userRole = localStorage.getItem('dokdo_role') || null;
+        // App State
+        let currentUser = null; // { username, class, cp, role }
+        let state = {
+            members: [],
+            notices: [],
+            attendance: {},
+            accounts: {} // { username: { password, role, class, cp } }
+        };
 
-    // Default In-Memory Initial Data
-    let clanState = {
-      announcements: [
-        { id: '1', title: '클랜 셔플 14기 진행 안내', content: '이번 셔플 기간은 14일간 진행되며, 출석 및 보스 참여율을 기반으로 다이아 분배가 이뤄집니다.', date: '2026-10-20' },
-        { id: '2', title: '점령전 및 쟁탈전 필참 안내', content: '토요일 21시 보스전 및 PVP 점수 반영 비중이 높으니 운영진 안내에 따라주세요.', date: '2026-10-22' }
-      ],
-      members: [
-        { id: 'm1', name: '독도대장', role: '군주', class: '기사', combatPower: 850000, memo: '메인 탱커' },
-        { id: 'm2', name: '칼날바람', role: '부군주', class: '암살자', combatPower: 790000, memo: 'PVP 리더' },
-        { id: 'm3', name: '힐링마스터', role: '수호자', class: '사제', combatPower: 680000, memo: '전담 힐러' },
-        { id: 'm4', name: '불꽃마법', role: '정예', class: '마법사', combatPower: 720000, memo: '딜러' },
-        { id: 'm5', name: '샤도우', role: '혈맹원', class: '도적', combatPower: 610000, memo: '출석 양호' }
-      ],
-      attendance: [
-        { id: 'a1', memberId: 'm1', memberName: '독도대장', g13: true, g21: true, satBoss: true, pvp: true, lucif: true, points: 5 },
-        { id: 'a2', memberId: 'm2', memberName: '칼날바람', g13: true, g21: true, satBoss: true, pvp: true, lucif: false, points: 4 },
-        { id: 'a3', memberId: 'm3', memberName: '힐링마스터', g13: false, g21: true, satBoss: true, pvp: true, lucif: true, points: 4 },
-        { id: 'a4', memberId: 'm4', memberName: '불꽃마법', g13: true, g21: false, satBoss: true, pvp: false, lucif: true, points: 3 },
-        { id: 'a5', memberId: 'm5', memberName: '샤도우', g13: false, g21: true, satBoss: false, pvp: true, lucif: true, points: 3 }
-      ],
-      bossTimers: [
-        { id: 'b1', name: '게헨나 보스 13시', time: '13:00', intervalHours: 24 },
-        { id: 'b2', name: '게헨나 보스 21시', time: '21:00', intervalHours: 24 },
-        { id: 'b3', name: '루체프 영지 보스', time: '22:30', intervalHours: 12 }
-      ],
-      settings: {
-        adminPasscode: "1273", // Admin Secret PIN
-        memberPasscode: "0000", // General Clan Member Secret PIN
-        attendancePin: "1273",  // Attendance Verify PIN
-        shufflePeriod: "14기 (10.15 ~ 10.29)"
-      }
-    };
+        // Firestore Path
+        const docRef = doc(db, "artifacts", "clan-app", "public", "data", "clan", "mainState");
 
-    // Firebase Auth & Data Listener Setup
-    async function initFirebase() {
-      try {
-        app = initializeApp(firebaseConfig);
-        db = getFirestore(app);
-        auth = getAuth(app);
-
-        // Rule 3: Auth First
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-          await signInWithCustomToken(auth, __initial_auth_token);
-        } else {
-          await signInAnonymously(auth);
-        }
-
-        currentUser = auth.currentUser;
-        if (!currentUser) return;
-
-        const syncBadge = document.getElementById('syncBadge');
-        if (syncBadge) {
-          syncBadge.innerHTML = `<i class="fa-solid fa-signal text-emerald-400 mr-1"></i> 실시간 DB 연결됨`;
-          syncBadge.className = "text-xs font-medium text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-3 py-1 rounded-full flex items-center";
-        }
-
-        isFirebaseReady = true;
-
-        // Rule 1: Public Collection Path
-        const stateDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'clan', 'mainState');
-
-        // Rule 2: Simple snapshot listener
-        onSnapshot(stateDocRef, (snapshot) => {
-          if (snapshot.exists()) {
-            const data = snapshot.data();
-            if (data && data.clanData) {
-              clanState = data.clanData;
-              // Preserve settings structure if missing
-              if (!clanState.settings) clanState.settings = {};
-              if (!clanState.settings.adminPasscode) clanState.settings.adminPasscode = "1273";
-              if (!clanState.settings.memberPasscode) clanState.settings.memberPasscode = "0000";
-              
-              window.checkAuthAndRender();
-            }
-          } else {
-            // First time setup
-            setDoc(stateDocRef, { clanData: clanState, updatedAt: new Date().toISOString() });
-          }
-        }, (error) => {
-          console.warn("Firestore listener notice:", error);
+        // Realtime Sync
+        signInAnonymously(auth).then(() => {
+            onSnapshot(docRef, (snapshot) => {
+                if (snapshot.exists()) {
+                    const data = snapshot.data();
+                    state = { ...state, ...data };
+                    renderApp();
+                } else {
+                    saveStateToFirestore();
+                }
+            });
+        }).catch(() => {
+            // Local fallback
+            const localData = localStorage.getItem("dokdo_state");
+            if (localData) state = JSON.parse(localData);
+            renderApp();
         });
 
-      } catch (err) {
-        console.warn("Running in local mode:", err);
-        const syncBadge = document.getElementById('syncBadge');
-        if (syncBadge) {
-          syncBadge.innerHTML = `<i class="fa-solid fa-floppy-disk text-amber-400 mr-1"></i> 로컬 오프라인 모드`;
-          syncBadge.className = "text-xs font-medium text-amber-400 bg-amber-950/60 border border-amber-500/30 px-3 py-1 rounded-full flex items-center";
-        }
-      }
-    }
-
-    window.saveClanData = async function() {
-      if (isFirebaseReady && currentUser) {
-        try {
-          const stateDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'clan', 'mainState');
-          await setDoc(stateDocRef, { clanData: clanState, updatedAt: new Date().toISOString() });
-        } catch (e) {
-          console.error("Error saving to Firestore:", e);
-        }
-      }
-      window.renderCurrentTab();
-    };
-
-    window.getClanState = () => clanState;
-
-    window.addEventListener('DOMContentLoaded', () => {
-      initFirebase();
-      window.checkAuthAndRender();
-    });
-  </script>
-</head>
-
-<body class="bg-brand-dark text-slate-100 font-sans min-h-screen flex flex-col md:flex-row antialiased selection:bg-brand-accent selection:text-black">
-
-  <!-- AUTH GATEWAY OVERLAY SCREEN -->
-  <div id="authGatewayScreen" class="fixed inset-0 bg-slate-950/95 backdrop-blur-md z-50 flex items-center justify-center p-4">
-    <div class="bg-brand-card border border-brand-border rounded-2xl p-6 md:p-8 max-w-md w-full shadow-2xl space-y-6 relative overflow-hidden">
-      <div class="absolute -top-12 -right-12 w-36 h-36 bg-brand-gold/10 rounded-full blur-2xl pointer-events-none"></div>
-      
-      <div class="text-center space-y-2">
-        <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-brand-gold to-amber-600 flex items-center justify-center text-slate-950 text-2xl font-bold mx-auto shadow-lg glow-gold">
-          <i class="fa-solid fa-shield-halved"></i>
-        </div>
-        <h2 class="text-2xl font-bold font-display tracking-wider text-white">DOKDO CLAN</h2>
-        <p class="text-xs text-brand-accent font-medium tracking-widest uppercase">비밀번호 인증 시스템</p>
-      </div>
-
-      <div class="space-y-4 pt-2">
-        <div>
-          <label class="block text-xs font-semibold text-slate-400 mb-1.5">접속 비밀번호 입력</label>
-          <div class="relative">
-            <input type="password" id="accessPasscodeInput" placeholder="비밀번호 입력" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-center font-mono text-lg tracking-widest focus:outline-none focus:border-brand-gold transition">
-            <button onclick="togglePasswordVisibility()" class="absolute right-3 top-3.5 text-slate-500 hover:text-slate-300 text-sm">
-              <i id="passEyeIcon" class="fa-solid fa-eye"></i>
-            </button>
-          </div>
-          <div id="authErrorMsg" class="text-xs text-red-400 mt-2 hidden text-center">
-            <i class="fa-solid fa-triangle-exclamation mr-1"></i> 비밀번호가 올바르지 않습니다.
-          </div>
-        </div>
-
-        <div class="flex items-center justify-between text-xs text-slate-400 px-1">
-          <label class="flex items-center space-x-2 cursor-pointer">
-            <input type="checkbox" id="rememberSessionCheck" checked class="accent-brand-gold rounded cursor-pointer">
-            <span>접속 상태 기억하기</span>
-          </label>
-        </div>
-
-        <button onclick="submitGatewayPasscode()" class="w-full py-3.5 bg-gradient-to-r from-brand-gold to-amber-600 hover:from-amber-500 hover:to-amber-700 text-slate-950 font-bold rounded-xl text-sm transition shadow-lg glow-gold flex items-center justify-center space-x-2">
-          <i class="fa-solid fa-key"></i>
-          <span>접속하기</span>
-        </button>
-
-        <div class="pt-4 border-t border-slate-800 text-center space-y-1">
-          <p class="text-xs text-slate-500">초기 설정 안내:</p>
-          <div class="flex justify-center space-x-4 text-xs font-mono">
-            <span class="text-brand-gold">운영진 비번: <span class="underline">1273</span></span>
-            <span class="text-slate-400">클랜원 비번: <span class="underline">0000</span></span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Mobile Top Bar -->
-  <header class="md:hidden bg-brand-card border-b border-brand-border p-4 flex items-center justify-between sticky top-0 z-40">
-    <div class="flex items-center space-x-2">
-      <i class="fa-solid fa-shield-halved text-brand-gold text-2xl"></i>
-      <span class="font-display font-bold text-xl text-slate-100 tracking-wider">DOKDO CLAN</span>
-    </div>
-    <div class="flex items-center space-x-2">
-      <button onclick="handleLogout()" class="px-2.5 py-1 bg-slate-800 text-xs text-slate-300 rounded border border-slate-700">로그아웃</button>
-      <button id="mobileMenuBtn" class="p-2 text-slate-400 hover:text-white focus:outline-none">
-        <i class="fa-solid fa-bars text-xl"></i>
-      </button>
-    </div>
-  </header>
-
-  <!-- Navigation Sidebar -->
-  <aside id="sidebar" class="hidden md:flex flex-col w-full md:w-64 bg-brand-card border-r border-brand-border p-4 shrink-0 transition-all duration-300 z-40">
-    <!-- Header / Logo -->
-    <div class="flex items-center space-x-3 px-2 py-3 mb-4 border-b border-brand-border/60">
-      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-gold to-amber-600 flex items-center justify-center text-slate-950 font-bold shadow-lg glow-gold">
-        <i class="fa-solid fa-dragon text-xl"></i>
-      </div>
-      <div>
-        <h1 class="font-display font-bold text-xl text-white tracking-wider leading-none">DOKDO</h1>
-        <p class="text-xs text-brand-accent font-medium tracking-widest mt-1">VAMPIRE SYSTEM</p>
-      </div>
-    </div>
-
-    <!-- User Role Badge & Logout Button -->
-    <div class="mb-4 px-2 flex items-center justify-between bg-slate-900/80 border border-slate-800 p-2.5 rounded-xl">
-      <div class="flex items-center space-x-2">
-        <span id="roleIndicatorBadge" class="px-2 py-0.5 rounded text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
-          운영진
-        </span>
-      </div>
-      <button onclick="handleLogout()" class="text-xs text-slate-400 hover:text-red-400 transition flex items-center space-x-1">
-        <i class="fa-solid fa-right-from-bracket"></i>
-        <span>로그아웃</span>
-      </button>
-    </div>
-
-    <!-- DB Sync Badge Status -->
-    <div class="mb-6 px-2">
-      <div id="syncBadge" class="text-xs font-medium text-slate-400 bg-slate-800/80 border border-slate-700/50 px-3 py-1.5 rounded-full flex items-center">
-        <i class="fa-solid fa-circle-notch fa-spin text-brand-accent mr-2"></i> DB 연결 확인 중...
-      </div>
-    </div>
-
-    <!-- Navigation Links -->
-    <nav class="space-y-1.5 flex-1" id="mainNav">
-      <!-- Nav buttons updated dynamically based on role -->
-    </nav>
-
-    <!-- Footer info -->
-    <div class="pt-4 mt-auto border-t border-brand-border/60 text-xs text-slate-500 flex justify-between items-center">
-      <span>DOKDO System v2.6</span>
-      <span class="text-brand-gold font-mono">Auth Protected</span>
-    </div>
-  </aside>
-
-  <!-- Main Content Body -->
-  <main class="flex-1 p-4 md:p-8 overflow-y-auto min-h-screen">
-    <div id="contentArea" class="max-w-6xl mx-auto space-y-6">
-      <!-- Dynamic View Rendered Here -->
-    </div>
-  </main>
-
-  <!-- Modal Container -->
-  <div id="customModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div id="modalCard" class="bg-brand-card border border-brand-border rounded-xl max-w-md w-full p-6 shadow-2xl relative">
-      <h3 id="modalTitle" class="text-lg font-bold text-white mb-2">알림</h3>
-      <div id="modalBody" class="text-sm text-slate-300 mb-6">내용</div>
-      <div id="modalActions" class="flex justify-end space-x-3">
-        <!-- Action Buttons Injected Dynamically -->
-      </div>
-    </div>
-  </div>
-
-  <script>
-    // Authentication Gateway Logic
-    window.checkAuthAndRender = function() {
-      const gateway = document.getElementById('authGatewayScreen');
-      const role = localStorage.getItem('dokdo_role');
-
-      if (!role) {
-        gateway.classList.remove('hidden');
-      } else {
-        gateway.classList.add('hidden');
-        window.userRole = role;
-        updateRoleBadge();
-        updateNavMenu();
-        window.renderCurrentTab();
-      }
-    };
-
-    window.togglePasswordVisibility = function() {
-      const input = document.getElementById('accessPasscodeInput');
-      const icon = document.getElementById('passEyeIcon');
-      if (input.type === 'password') {
-        input.type = 'text';
-        icon.className = 'fa-solid fa-eye-slash';
-      } else {
-        input.type = 'password';
-        icon.className = 'fa-solid fa-eye';
-      }
-    };
-
-    window.submitGatewayPasscode = function() {
-      const inputPass = document.getElementById('accessPasscodeInput').value.trim();
-      const remember = document.getElementById('rememberSessionCheck').checked;
-      const errorMsg = document.getElementById('authErrorMsg');
-      const state = window.getClanState ? window.getClanState() : {};
-      const settings = state.settings || { adminPasscode: "1273", memberPasscode: "0000" };
-
-      if (inputPass === settings.adminPasscode) {
-        window.userRole = 'admin';
-        if (remember) localStorage.setItem('dokdo_role', 'admin');
-        errorMsg.classList.add('hidden');
-        window.checkAuthAndRender();
-      } else if (inputPass === settings.memberPasscode) {
-        window.userRole = 'member';
-        if (remember) localStorage.setItem('dokdo_role', 'member');
-        errorMsg.classList.add('hidden');
-        window.checkAuthAndRender();
-      } else {
-        errorMsg.classList.remove('hidden');
-      }
-    };
-
-    window.handleLogout = function() {
-      localStorage.removeItem('dokdo_role');
-      window.userRole = null;
-      document.getElementById('accessPasscodeInput').value = '';
-      window.checkAuthAndRender();
-    };
-
-    function updateRoleBadge() {
-      const badge = document.getElementById('roleIndicatorBadge');
-      if (!badge) return;
-      if (window.userRole === 'admin') {
-        badge.innerHTML = `<i class="fa-solid fa-crown mr-1"></i> 운영진 권한`;
-        badge.className = "px-2 py-0.5 rounded text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30";
-      } else {
-        badge.innerHTML = `<i class="fa-solid fa-user mr-1"></i> 일반 클랜원`;
-        badge.className = "px-2 py-0.5 rounded text-xs font-bold bg-cyan-500/20 text-cyan-400 border border-cyan-500/30";
-      }
-    }
-
-    function updateNavMenu() {
-      const nav = document.getElementById('mainNav');
-      if (!nav) return;
-
-      nav.innerHTML = `
-        <button onclick="switchTab('dashboard')" data-tab="dashboard" class="nav-link w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition-colors bg-brand-accent/10 text-brand-accent border border-brand-accent/30">
-          <i class="fa-solid fa-chart-pie w-5 text-center"></i>
-          <span>대시보드 (Dashboard)</span>
-        </button>
-
-        <button onclick="switchTab('announcements')" data-tab="announcements" class="nav-link w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors">
-          <i class="fa-solid fa-bullhorn w-5 text-center"></i>
-          <span>공지 & 점수 안내</span>
-        </button>
-
-        <button onclick="switchTab('members')" data-tab="members" class="nav-link w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors">
-          <i class="fa-solid fa-users w-5 text-center"></i>
-          <span>클랜원 & 투력 관리</span>
-        </button>
-
-        <button onclick="switchTab('attendance')" data-tab="attendance" class="nav-link w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors">
-          <i class="fa-solid fa-clipboard-user w-5 text-center"></i>
-          <span>출석 체크 & 점수</span>
-        </button>
-
-        <button onclick="switchTab('diamonds')" data-tab="diamonds" class="nav-link w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors">
-          <i class="fa-solid fa-gem w-5 text-center text-cyan-400"></i>
-          <span>다이아 자동 분배기</span>
-        </button>
-
-        <button onclick="switchTab('timers')" data-tab="timers" class="nav-link w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors">
-          <i class="fa-solid fa-stopwatch w-5 text-center text-amber-400"></i>
-          <span>보스 타임 계산기</span>
-        </button>
-
-        <button onclick="switchTab('ladder')" data-tab="ladder" class="nav-link w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors">
-          <i class="fa-solid fa-dice w-5 text-center text-purple-400"></i>
-          <span>클랜 사다리타기</span>
-        </button>
-
-        ${window.userRole === 'admin' ? `
-          <button onclick="switchTab('settings')" data-tab="settings" class="nav-link w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors">
-            <i class="fa-solid fa-gear w-5 text-center text-rose-400"></i>
-            <span>운영진 비밀번호 설정</span>
-          </button>
-        ` : ''}
-      `;
-    }
-
-    // Extended render logic for settings view
-    const originalRenderCurrentTab = window.renderCurrentTab;
-    window.renderCurrentTab = function() {
-      if (currentTab === 'settings' && window.userRole === 'admin') {
-        const container = document.getElementById('contentArea');
-        const state = window.getClanState();
-        renderSettings(container, state);
-        return;
-      }
-      if (originalRenderCurrentTab) originalRenderCurrentTab();
-    };
-
-    function renderSettings(container, state) {
-      const settings = state.settings || {};
-      container.innerHTML = `
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h2 class="text-2xl font-bold font-display text-white">운영진 보안 & 비밀번호 변경</h2>
-            <p class="text-sm text-slate-400">클랜원 접속 번호 및 운영진 마스터 암호를 관리합니다.</p>
-          </div>
-        </div>
-
-        <div class="bg-brand-card border border-brand-border rounded-xl p-6 space-y-6 max-w-xl">
-          <div>
-            <label class="block text-xs font-semibold text-slate-400 mb-1.5">운영진 전용 마스터 비밀번호</label>
-            <input type="text" id="adminPassInput" value="${settings.adminPasscode || '1273'}" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3.5 py-2 text-white font-mono focus:outline-none focus:border-brand-gold">
-          </div>
-
-          <div>
-            <label class="block text-xs font-semibold text-slate-400 mb-1.5">일반 클랜원 접속 비밀번호</label>
-            <input type="text" id="memberPassInput" value="${settings.memberPasscode || '0000'}" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3.5 py-2 text-white font-mono focus:outline-none focus:border-brand-accent">
-          </div>
-
-          <div>
-            <label class="block text-xs font-semibold text-slate-400 mb-1.5">현재 셔플 기수 명칭</label>
-            <input type="text" id="shufflePeriodInput" value="${settings.shufflePeriod || '14기'}" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3.5 py-2 text-white focus:outline-none focus:border-brand-accent">
-          </div>
-
-          <button onclick="saveAdminSettings()" class="px-5 py-2.5 bg-brand-gold hover:bg-brand-goldHover text-slate-950 font-bold rounded-lg text-sm transition shadow-md">
-            설정 저정하기
-          </button>
-        </div>
-      `;
-    }
-
-    window.saveAdminSettings = function() {
-      const state = window.getClanState();
-      state.settings = state.settings || {};
-      state.settings.adminPasscode = document.getElementById('adminPassInput').value.trim();
-      state.settings.memberPasscode = document.getElementById('memberPassInput').value.trim();
-      state.settings.shufflePeriod = document.getElementById('shufflePeriodInput').value.trim();
-
-      window.saveClanData();
-      alert("비밀번호 및 암호 설정이 변경되어 저장되었습니다.");
-    };
-  </script>
-</head>
-
-<body class="bg-brand-dark text-slate-100 font-sans min-h-screen flex flex-col md:flex-row antialiased selection:bg-brand-accent selection:text-black">
-
-  <!-- Mobile Top Bar -->
-  <header class="md:hidden bg-brand-card border-b border-brand-border p-4 flex items-center justify-between sticky top-0 z-50">
-    <div class="flex items-center space-x-2">
-      <i class="fa-solid fa-shield-halved text-brand-gold text-2xl"></i>
-      <span class="font-display font-bold text-xl text-slate-100 tracking-wider">DOKDO CLAN</span>
-    </div>
-    <button id="mobileMenuBtn" class="p-2 text-slate-400 hover:text-white focus:outline-none">
-      <i class="fa-solid fa-bars text-xl"></i>
-    </button>
-  </header>
-
-  <!-- Navigation Sidebar -->
-  <aside id="sidebar" class="hidden md:flex flex-col w-full md:w-64 bg-brand-card border-r border-brand-border p-4 shrink-0 transition-all duration-300 z-40">
-    <!-- Header / Logo -->
-    <div class="flex items-center space-x-3 px-2 py-3 mb-6 border-b border-brand-border/60">
-      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-gold to-amber-600 flex items-center justify-center text-slate-950 font-bold shadow-lg glow-gold">
-        <i class="fa-solid fa-dragon text-xl"></i>
-      </div>
-      <div>
-        <h1 class="font-display font-bold text-xl text-white tracking-wider leading-none">DOKDO</h1>
-        <p class="text-xs text-brand-accent font-medium tracking-widest mt-1">VAMPIRE SYSTEM</p>
-      </div>
-    </div>
-
-    <!-- DB Sync Badge Status -->
-    <div class="mb-6 px-2">
-      <div id="syncBadge" class="text-xs font-medium text-slate-400 bg-slate-800/80 border border-slate-700/50 px-3 py-1.5 rounded-full flex items-center">
-        <i class="fa-solid fa-circle-notch fa-spin text-brand-accent mr-2"></i> DB 연결 확인 중...
-      </div>
-    </div>
-
-    <!-- Navigation Links -->
-    <nav class="space-y-1.5 flex-1" id="mainNav">
-      <button onclick="switchTab('dashboard')" data-tab="dashboard" class="nav-link w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition-colors bg-brand-accent/10 text-brand-accent border border-brand-accent/30">
-        <i class="fa-solid fa-chart-pie w-5 text-center"></i>
-        <span>대시보드 (Dashboard)</span>
-      </button>
-
-      <button onclick="switchTab('announcements')" data-tab="announcements" class="nav-link w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors">
-        <i class="fa-solid fa-bullhorn w-5 text-center"></i>
-        <span>공지 & 점수 안내</span>
-      </button>
-
-      <button onclick="switchTab('members')" data-tab="members" class="nav-link w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors">
-        <i class="fa-solid fa-users w-5 text-center"></i>
-        <span>클랜원 & 투력 관리</span>
-      </button>
-
-      <button onclick="switchTab('attendance')" data-tab="attendance" class="nav-link w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors">
-        <i class="fa-solid fa-clipboard-user w-5 text-center"></i>
-        <span>출석 체크 & 점수</span>
-      </button>
-
-      <button onclick="switchTab('diamonds')" data-tab="diamonds" class="nav-link w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors">
-        <i class="fa-solid fa-gem w-5 text-center text-cyan-400"></i>
-        <span>다이아 자동 분배기</span>
-      </button>
-
-      <button onclick="switchTab('timers')" data-tab="timers" class="nav-link w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors">
-        <i class="fa-solid fa-stopwatch w-5 text-center text-amber-400"></i>
-        <span>보스 타임 계산기</span>
-      </button>
-
-      <button onclick="switchTab('ladder')" data-tab="ladder" class="nav-link w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors">
-        <i class="fa-solid fa-dice w-5 text-center text-purple-400"></i>
-        <span>클랜 사다리타기</span>
-      </button>
-    </nav>
-
-    <!-- Footer info -->
-    <div class="pt-4 mt-auto border-t border-brand-border/60 text-xs text-slate-500 flex justify-between items-center">
-      <span>DOKDO System v2.5</span>
-      <span class="text-brand-gold font-mono">14 Shuffle</span>
-    </div>
-  </aside>
-
-  <!-- Main Content Body -->
-  <main class="flex-1 p-4 md:p-8 overflow-y-auto min-h-screen">
-    <div id="contentArea" class="max-w-6xl mx-auto space-y-6">
-      <!-- Dynamic View Rendered Here -->
-    </div>
-  </main>
-
-  <!-- Modal Container for Passwords & Custom Dialogs -->
-  <div id="customModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div id="modalCard" class="bg-brand-card border border-brand-border rounded-xl max-w-md w-full p-6 shadow-2xl relative">
-      <h3 id="modalTitle" class="text-lg font-bold text-white mb-2">알림</h3>
-      <div id="modalBody" class="text-sm text-slate-300 mb-6">내용</div>
-      <div id="modalActions" class="flex justify-end space-x-3">
-        <!-- Action Buttons Injected Dynamically -->
-      </div>
-    </div>
-  </div>
-
-  <!-- Application Logic JavaScript -->
-  <script>
-    // Current Active Navigation State
-    let currentTab = 'dashboard';
-
-    // Toggle Mobile Navigation Menu
-    document.getElementById('mobileMenuBtn').addEventListener('click', () => {
-      const sidebar = document.getElementById('sidebar');
-      sidebar.classList.toggle('hidden');
-    });
-
-    // Tab Switcher
-    window.switchTab = function(tabName) {
-      currentTab = tabName;
-      
-      // Update Active Navigation Class Styles
-      document.querySelectorAll('.nav-link').forEach(btn => {
-        if (btn.dataset.tab === tabName) {
-          btn.className = "nav-link w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition-colors bg-brand-accent/10 text-brand-accent border border-brand-accent/30";
-        } else {
-          btn.className = "nav-link w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors border border-transparent";
-        }
-      });
-
-      // Hide sidebar on mobile after clicking
-      if (window.innerWidth < 768) {
-        document.getElementById('sidebar').classList.add('hidden');
-      }
-
-      window.renderCurrentTab();
-    };
-
-    // Render Handler according to currentTab
-    window.renderCurrentTab = function() {
-      const state = window.getClanState ? window.getClanState() : {};
-      const container = document.getElementById('contentArea');
-      if (!container) return;
-
-      switch(currentTab) {
-        case 'dashboard': renderDashboard(container, state); break;
-        case 'announcements': renderAnnouncements(container, state); break;
-        case 'members': renderMembers(container, state); break;
-        case 'attendance': renderAttendance(container, state); break;
-        case 'diamonds': renderDiamonds(container, state); break;
-        case 'timers': renderTimers(container, state); break;
-        case 'ladder': renderLadder(container, state); break;
-        default: renderDashboard(container, state);
-      }
-    };
-
-    // --- 1. DASHBOARD VIEW ---
-    function renderDashboard(container, state) {
-      const members = state.members || [];
-      const totalCombatPower = members.reduce((sum, m) => sum + (m.combatPower || 0), 0);
-      const avgCombatPower = members.length ? Math.round(totalCombatPower / members.length) : 0;
-      const announcements = state.announcements || [];
-
-      container.innerHTML = `
-        <!-- Top Stats Overview -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div class="bg-brand-card border border-brand-border p-5 rounded-xl flex items-center space-x-4">
-            <div class="p-3 bg-brand-accent/10 text-brand-accent rounded-lg border border-brand-accent/20">
-              <i class="fa-solid fa-users text-2xl"></i>
-            </div>
-            <div>
-              <p class="text-xs text-slate-400 font-medium">전체 혈맹원</p>
-              <h3 class="text-2xl font-bold font-display text-white mt-0.5">${members.length}명</h3>
-            </div>
-          </div>
-
-          <div class="bg-brand-card border border-brand-border p-5 rounded-xl flex items-center space-x-4">
-            <div class="p-3 bg-brand-gold/10 text-brand-gold rounded-lg border border-brand-gold/20">
-              <i class="fa-solid fa-swords text-2xl"></i>
-            </div>
-            <div>
-              <p class="text-xs text-slate-400 font-medium">혈맹 총 전투력</p>
-              <h3 class="text-2xl font-bold font-display text-white mt-0.5">${(totalCombatPower / 10000).toFixed(1)}만</h3>
-            </div>
-          </div>
-
-          <div class="bg-brand-card border border-brand-border p-5 rounded-xl flex items-center space-x-4">
-            <div class="p-3 bg-purple-500/10 text-purple-400 rounded-lg border border-purple-500/20">
-              <i class="fa-solid fa-shield-virus text-2xl"></i>
-            </div>
-            <div>
-              <p class="text-xs text-slate-400 font-medium">평균 전투력</p>
-              <h3 class="text-2xl font-bold font-display text-white mt-0.5">${(avgCombatPower / 10000).toFixed(1)}만</h3>
-            </div>
-          </div>
-
-          <div class="bg-brand-card border border-brand-border p-5 rounded-xl flex items-center space-x-4">
-            <div class="p-3 bg-emerald-500/10 text-emerald-400 rounded-lg border border-emerald-500/20">
-              <i class="fa-solid fa-calendar-check text-2xl"></i>
-            </div>
-            <div>
-              <p class="text-xs text-slate-400 font-medium">현재 셔플 회차</p>
-              <h3 class="text-xl font-bold font-display text-white mt-0.5">${state.settings?.shufflePeriod || '14기'}</h3>
-            </div>
-          </div>
-        </div>
-
-        <!-- Middle Grid: Notice & Clan Rank Preview -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <!-- Recent Notices -->
-          <div class="lg:col-span-2 bg-brand-card border border-brand-border rounded-xl p-6">
-            <div class="flex items-center justify-between mb-4 pb-3 border-b border-brand-border/60">
-              <h2 class="text-lg font-bold text-white flex items-center">
-                <i class="fa-solid fa-bullhorn text-brand-gold mr-2.5"></i> 최신 클랜 공지사항
-              </h2>
-              <button onclick="switchTab('announcements')" class="text-xs text-brand-accent hover:underline">전체보기 &rarr;</button>
-            </div>
-            <div class="space-y-3">
-              ${announcements.slice(0, 3).map(item => `
-                <div class="p-4 bg-slate-900/60 rounded-lg border border-slate-800/60 hover:border-brand-accent/40 transition">
-                  <div class="flex items-center justify-between mb-1">
-                    <span class="font-semibold text-slate-100">${escapeHtml(item.title)}</span>
-                    <span class="text-xs font-mono text-slate-500">${item.date}</span>
-                  </div>
-                  <p class="text-sm text-slate-400 line-clamp-2">${escapeHtml(item.content)}</p>
-                </div>
-              `).join('')}
-              ${announcements.length === 0 ? '<p class="text-sm text-slate-500 py-4 text-center">등록된 공지사항이 없습니다.</p>' : ''}
-            </div>
-          </div>
-
-          <!-- Top Combat Power Members -->
-          <div class="bg-brand-card border border-brand-border rounded-xl p-6">
-            <div class="flex items-center justify-between mb-4 pb-3 border-b border-brand-border/60">
-              <h2 class="text-lg font-bold text-white flex items-center">
-                <i class="fa-solid fa-crown text-brand-gold mr-2.5"></i> 전투력 TOP 5
-              </h2>
-              <button onclick="switchTab('members')" class="text-xs text-brand-accent hover:underline">전체 순위 &rarr;</button>
-            </div>
-            <div class="space-y-2.5">
-              ${[...members].sort((a,b) => b.combatPower - a.combatPower).slice(0, 5).map((m, idx) => `
-                <div class="flex items-center justify-between p-2.5 rounded-lg bg-slate-900/40 border border-slate-800/40">
-                  <div class="flex items-center space-x-3">
-                    <span class="w-6 h-6 rounded-full font-bold text-xs flex items-center justify-center ${
-                      idx === 0 ? 'bg-amber-400 text-slate-950 glow-gold' :
-                      idx === 1 ? 'bg-slate-300 text-slate-950' :
-                      idx === 2 ? 'bg-amber-700 text-white' : 'bg-slate-800 text-slate-400'
-                    }">${idx + 1}</span>
-                    <div>
-                      <div class="text-sm font-semibold text-slate-200">${escapeHtml(m.name)}</div>
-                      <div class="text-xs text-slate-500">${escapeHtml(m.role)} · ${escapeHtml(m.class)}</div>
-                    </div>
-                  </div>
-                  <div class="text-sm font-bold font-mono text-brand-accent">
-                    ${(m.combatPower / 10000).toFixed(1)}만
-                  </div>
-                </div>
-              `).join('')}
-            </div>
-          </div>
-        </div>
-      `;
-    }
-
-    // --- 2. ANNOUNCEMENTS & RULES VIEW ---
-    function renderAnnouncements(container, state) {
-      const announcements = state.announcements || [];
-
-      container.innerHTML = `
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h2 class="text-2xl font-bold font-display text-white">공지사항 & 점수 규칙</h2>
-            <p class="text-sm text-slate-400">클랜 규칙 및 회차별 공지사항을 등록/확인할 수 있습니다.</p>
-          </div>
-          <button onclick="openAddNoticeModal()" class="px-4 py-2 bg-brand-gold hover:bg-brand-goldHover text-slate-950 font-semibold rounded-lg text-sm flex items-center space-x-2 transition shadow-md">
-            <i class="fa-solid fa-plus"></i>
-            <span>새 공지 작성</span>
-          </button>
-        </div>
-
-        <!-- Rules Info Panel -->
-        <div class="bg-brand-card border border-brand-accent/30 rounded-xl p-5 bg-gradient-to-r from-brand-card to-cyan-950/20">
-          <h3 class="text-base font-bold text-brand-accent mb-3 flex items-center">
-            <i class="fa-solid fa-circle-info mr-2"></i> 셔플 점수 획득 기준 안내
-          </h3>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-slate-300">
-            <div class="p-3 bg-slate-900/80 rounded-lg border border-slate-800">
-              <span class="font-bold text-brand-gold block mb-1">게헨나 보스 (13시/21시)</span>
-              각 시간대 타임별 인증 시 +1.0점 획득 (비밀번호 인증 필요)
-            </div>
-            <div class="p-3 bg-slate-900/80 rounded-lg border border-slate-800">
-              <span class="font-bold text-purple-400 block mb-1">PVP 및 토요일 보스전</span>
-              주말 점령전 및 보스 참여 시 각 +1.0점 추가 반영
-            </div>
-            <div class="p-3 bg-slate-900/80 rounded-lg border border-slate-800">
-              <span class="font-bold text-emerald-400 block mb-1">루체프 출석</span>
-              루체프 영지 참여 시 +1.0점 및 보너스 수당 반영
-            </div>
-          </div>
-        </div>
-
-        <!-- Announcement Cards -->
-        <div class="space-y-4">
-          ${announcements.map((notice) => `
-            <div class="bg-brand-card border border-brand-border rounded-xl p-6 relative">
-              <div class="flex items-start justify-between gap-4">
-                <div>
-                  <h3 class="text-lg font-bold text-white mb-2">${escapeHtml(notice.title)}</h3>
-                  <span class="text-xs font-mono text-slate-500 bg-slate-900 px-2.5 py-1 rounded border border-slate-800">${notice.date}</span>
-                </div>
-                <button onclick="deleteNotice('${notice.id}')" class="text-slate-500 hover:text-red-400 p-2 transition">
-                  <i class="fa-solid fa-trash-can"></i>
-                </button>
-              </div>
-              <p class="text-sm text-slate-300 whitespace-pre-line leading-relaxed mt-4 pt-4 border-t border-brand-border/60">${escapeHtml(notice.content)}</p>
-            </div>
-          `).join('')}
-        </div>
-      `;
-    }
-
-    // Modal Add Notice Action
-    window.openAddNoticeModal = function() {
-      const modal = document.getElementById('customModal');
-      const title = document.getElementById('modalTitle');
-      const body = document.getElementById('modalBody');
-      const actions = document.getElementById('modalActions');
-
-      title.innerText = "새 공지사항 등록";
-      body.innerHTML = `
-        <div class="space-y-4">
-          <div>
-            <label class="block text-xs font-semibold text-slate-400 mb-1">제목</label>
-            <input type="text" id="noticeTitleInput" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-accent">
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-400 mb-1">내용</label>
-            <textarea id="noticeContentInput" rows="4" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-accent"></textarea>
-          </div>
-        </div>
-      `;
-
-      actions.innerHTML = `
-        <button onclick="closeModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-sm">취소</button>
-        <button onclick="submitNotice()" class="px-4 py-2 bg-brand-gold hover:bg-brand-goldHover text-slate-950 font-bold rounded-lg text-sm">등록</button>
-      `;
-
-      modal.classList.remove('hidden');
-    };
-
-    window.submitNotice = function() {
-      const title = document.getElementById('noticeTitleInput').value.trim();
-      const content = document.getElementById('noticeContentInput').value.trim();
-      if (!title || !content) return;
-
-      const state = window.getClanState();
-      const newNotice = {
-        id: 'n_' + Date.now(),
-        title,
-        content,
-        date: new Date().toISOString().split('T')[0]
-      };
-
-      state.announcements = [newNotice, ...(state.announcements || [])];
-      window.saveClanData();
-      window.closeModal();
-    };
-
-    window.deleteNotice = function(id) {
-      if (!confirm("공지사항을 삭제하시겠습니까?")) return;
-      const state = window.getClanState();
-      state.announcements = (state.announcements || []).filter(n => n.id !== id);
-      window.saveClanData();
-    };
-
-    // --- 3. CLAN MEMBERS & COMBAT POWER VIEW ---
-    function renderMembers(container, state) {
-      const members = state.members || [];
-
-      container.innerHTML = `
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h2 class="text-2xl font-bold font-display text-white">클랜원 & 전투력 관리</h2>
-            <p class="text-sm text-slate-400">클랜원의 직책, 클래스 및 전투력 순위를 관리합니다.</p>
-          </div>
-          <button onclick="openAddMemberModal()" class="px-4 py-2 bg-brand-accent hover:bg-cyan-600 text-slate-950 font-bold rounded-lg text-sm flex items-center space-x-2 transition shadow-md">
-            <i class="fa-solid fa-user-plus"></i>
-            <span>클랜원 추가</span>
-          </button>
-        </div>
-
-        <div class="bg-brand-card border border-brand-border rounded-xl overflow-hidden shadow-xl">
-          <div class="overflow-x-auto">
-            <table class="w-full text-left text-sm text-slate-300">
-              <thead class="bg-slate-900/80 text-xs font-semibold text-slate-400 uppercase tracking-wider border-b border-brand-border">
-                <tr>
-                  <th class="py-3.5 px-4">순위</th>
-                  <th class="py-3.5 px-4">닉네임</th>
-                  <th class="py-3.5 px-4">직책</th>
-                  <th class="py-3.5 px-4">클래스</th>
-                  <th class="py-3.5 px-4 text-right">전투력</th>
-                  <th class="py-3.5 px-4">메모</th>
-                  <th class="py-3.5 px-4 text-center">관리</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-brand-border/60">
-                ${[...members].sort((a,b) => b.combatPower - a.combatPower).map((m, idx) => `
-                  <tr class="hover:bg-slate-800/40 transition">
-                    <td class="py-3.5 px-4 font-bold ${
-                      idx === 0 ? 'text-amber-400' : idx === 1 ? 'text-slate-300' : idx === 2 ? 'text-amber-600' : 'text-slate-500'
-                    }">#${idx + 1}</td>
-                    <td class="py-3.5 px-4 font-bold text-white">${escapeHtml(m.name)}</td>
-                    <td class="py-3.5 px-4">
-                      <span class="px-2.5 py-1 rounded text-xs font-medium ${
-                        m.role === '군주' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
-                        m.role === '부군주' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30' :
-                        'bg-slate-800 text-slate-400'
-                      }">${escapeHtml(m.role)}</span>
-                    </td>
-                    <td class="py-3.5 px-4 text-slate-400">${escapeHtml(m.class)}</td>
-                    <td class="py-3.5 px-4 text-right font-mono font-bold text-brand-accent">
-                      ${m.combatPower.toLocaleString()}
-                    </td>
-                    <td class="py-3.5 px-4 text-xs text-slate-500">${escapeHtml(m.memo || '-')}</td>
-                    <td class="py-3.5 px-4 text-center space-x-2">
-                      <button onclick="openEditMemberModal('${m.id}')" class="text-slate-400 hover:text-brand-accent transition">
-                        <i class="fa-solid fa-pen"></i>
-                      </button>
-                      <button onclick="deleteMember('${m.id}')" class="text-slate-400 hover:text-red-400 transition">
-                        <i class="fa-solid fa-trash"></i>
-                      </button>
-                    </td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      `;
-    }
-
-    window.openAddMemberModal = function() {
-      const modal = document.getElementById('customModal');
-      const title = document.getElementById('modalTitle');
-      const body = document.getElementById('modalBody');
-      const actions = document.getElementById('modalActions');
-
-      title.innerText = "신규 클랜원 추가";
-      body.innerHTML = `
-        <div class="space-y-3">
-          <div>
-            <label class="block text-xs font-semibold text-slate-400 mb-1">캐릭터 닉네임</label>
-            <input type="text" id="memName" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm text-white">
-          </div>
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="block text-xs font-semibold text-slate-400 mb-1">직책</label>
-              <select id="memRole" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm text-white">
-                <option value="혈맹원">혈맹원</option>
-                <option value="정예">정예</option>
-                <option value="수호자">수호자</option>
-                <option value="부군주">부군주</option>
-                <option value="군주">군주</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-xs font-semibold text-slate-400 mb-1">클래스</label>
-              <input type="text" id="memClass" placeholder="예: 기사, 마법사" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm text-white">
-            </div>
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-400 mb-1">전투력</label>
-            <input type="number" id="memCP" placeholder="750000" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm text-white">
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-400 mb-1">메모</label>
-            <input type="text" id="memMemo" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm text-white">
-          </div>
-        </div>
-      `;
-
-      actions.innerHTML = `
-        <button onclick="closeModal()" class="px-4 py-2 bg-slate-800 text-slate-300 rounded text-sm">취소</button>
-        <button onclick="submitMember()" class="px-4 py-2 bg-brand-accent text-slate-950 font-bold rounded text-sm">추가</button>
-      `;
-
-      modal.classList.remove('hidden');
-    };
-
-    window.submitMember = function() {
-      const name = document.getElementById('memName').value.trim();
-      const role = document.getElementById('memRole').value;
-      const cls = document.getElementById('memClass').value.trim() || '미정';
-      const cp = parseInt(document.getElementById('memCP').value) || 0;
-      const memo = document.getElementById('memMemo').value.trim();
-
-      if (!name) return;
-
-      const state = window.getClanState();
-      const newId = 'm_' + Date.now();
-      
-      state.members = state.members || [];
-      state.members.push({ id: newId, name, role, class: cls, combatPower: cp, memo });
-
-      // Synchronize Attendance Slot
-      state.attendance = state.attendance || [];
-      state.attendance.push({
-        id: 'att_' + newId,
-        memberId: newId,
-        memberName: name,
-        g13: false, g21: false, satBoss: false, pvp: false, lucif: false, points: 0
-      });
-
-      window.saveClanData();
-      window.closeModal();
-    };
-
-    window.deleteMember = function(id) {
-      if (!confirm("해당 클랜원을 삭제하시겠습니까?")) return;
-      const state = window.getClanState();
-      state.members = (state.members || []).filter(m => m.id !== id);
-      state.attendance = (state.attendance || []).filter(a => a.memberId !== id);
-      window.saveClanData();
-    };
-
-    // --- 4. ATTENDANCE CHECK SYSTEM ---
-    function renderAttendance(container, state) {
-      const attendance = state.attendance || [];
-      const passcode = state.settings?.passcode || "1273";
-
-      container.innerHTML = `
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h2 class="text-2xl font-bold font-display text-white">출석 체크 및 점수 현황</h2>
-            <p class="text-sm text-slate-400">인증 패스워드를 사용하여 실시간 출석 및 활동 점수를 계산합니다.</p>
-          </div>
-          <div class="flex items-center space-x-2 bg-brand-card border border-brand-border px-3 py-1.5 rounded-lg">
-            <i class="fa-solid fa-lock text-brand-gold text-xs"></i>
-            <span class="text-xs text-slate-400">현재 인증번호:</span>
-            <span class="text-xs font-mono font-bold text-white">${passcode}</span>
-            <button onclick="changePasscodeModal()" class="text-xs text-brand-accent ml-2 hover:underline">수정</button>
-          </div>
-        </div>
-
-        <div class="bg-brand-card border border-brand-border rounded-xl overflow-hidden shadow-xl">
-          <div class="overflow-x-auto">
-            <table class="w-full text-left text-sm text-slate-300">
-              <thead class="bg-slate-900/80 text-xs font-semibold text-slate-400 uppercase tracking-wider border-b border-brand-border">
-                <tr>
-                  <th class="py-3.5 px-4">클랜원</th>
-                  <th class="py-3.5 px-4 text-center">게헨나 (13시)</th>
-                  <th class="py-3.5 px-4 text-center">게헨나 (21시)</th>
-                  <th class="py-3.5 px-4 text-center">토요 보스</th>
-                  <th class="py-3.5 px-4 text-center">PVP 쟁탈전</th>
-                  <th class="py-3.5 px-4 text-center">루체프 출석</th>
-                  <th class="py-3.5 px-4 text-right">총 점수</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-brand-border/60">
-                ${attendance.map((att) => {
-                  return `
-                    <tr class="hover:bg-slate-800/40 transition">
-                      <td class="py-3.5 px-4 font-bold text-white">${escapeHtml(att.memberName)}</td>
-                      <td class="py-3.5 px-4 text-center">
-                        <input type="checkbox" ${att.g13 ? 'checked' : ''} onchange="toggleAttendance('${att.id}', 'g13')" class="w-4 h-4 accent-brand-accent cursor-pointer rounded">
-                      </td>
-                      <td class="py-3.5 px-4 text-center">
-                        <input type="checkbox" ${att.g21 ? 'checked' : ''} onchange="toggleAttendance('${att.id}', 'g21')" class="w-4 h-4 accent-brand-accent cursor-pointer rounded">
-                      </td>
-                      <td class="py-3.5 px-4 text-center">
-                        <input type="checkbox" ${att.satBoss ? 'checked' : ''} onchange="toggleAttendance('${att.id}', 'satBoss')" class="w-4 h-4 accent-brand-gold cursor-pointer rounded">
-                      </td>
-                      <td class="py-3.5 px-4 text-center">
-                        <input type="checkbox" ${att.pvp ? 'checked' : ''} onchange="toggleAttendance('${att.id}', 'pvp')" class="w-4 h-4 accent-purple-500 cursor-pointer rounded">
-                      </td>
-                      <td class="py-3.5 px-4 text-center">
-                        <input type="checkbox" ${att.lucif ? 'checked' : ''} onchange="toggleAttendance('${att.id}', 'lucif')" class="w-4 h-4 accent-emerald-500 cursor-pointer rounded">
-                      </td>
-                      <td class="py-3.5 px-4 text-right font-mono font-bold text-lg text-brand-gold">
-                        ${att.points}점
-                      </td>
-                    </tr>
-                  `;
-                }).join('')}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      `;
-    }
-
-    window.toggleAttendance = function(attId, field) {
-      const state = window.getClanState();
-      const item = (state.attendance || []).find(a => a.id === attId);
-      if (!item) return;
-
-      // Passcode Challenge check for secure operational integrity
-      const userPass = prompt("인증 비밀번호를 입력해주세요:");
-      if (userPass !== (state.settings?.passcode || "1273")) {
-        alert("비밀번호가 일치하지 않습니다.");
-        window.renderCurrentTab();
-        return;
-      }
-
-      item[field] = !item[field];
-      // Recalculate Points
-      item.points = (item.g13 ? 1 : 0) + (item.g21 ? 1 : 0) + (item.satBoss ? 1 : 0) + (item.pvp ? 1 : 0) + (item.lucif ? 1 : 0);
-      
-      window.saveClanData();
-    };
-
-    window.changePasscodeModal = function() {
-      const state = window.getClanState();
-      const newPass = prompt("새로운 출석 인증 비밀번호를 입력하세요:", state.settings?.passcode || "1273");
-      if (newPass) {
-        state.settings = state.settings || {};
-        state.settings.passcode = newPass.trim();
-        window.saveClanData();
-      }
-    };
-
-    // --- 5. DIAMOND DISTRIBUTION CALCULATOR ---
-    function renderDiamonds(container, state) {
-      const members = state.members || [];
-      const attendance = state.attendance || [];
-
-      container.innerHTML = `
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h2 class="text-2xl font-bold font-display text-white">다이아 정산 및 자동 분배기</h2>
-            <p class="text-sm text-slate-400">총 획득 다이아에서 운영비를 차감한 후, 출석 점수 및 전투력 비중에 따라 자동 계산합니다.</p>
-          </div>
-        </div>
-
-        <!-- Calculator Input Panel -->
-        <div class="bg-brand-card border border-brand-border p-6 rounded-xl space-y-4">
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label class="block text-xs font-semibold text-slate-400 mb-1.5">총 획득 다이아</label>
-              <input type="number" id="totalDiaInput" value="10000" oninput="calculateDistributions()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3.5 py-2 text-white font-mono text-lg focus:outline-none focus:border-brand-accent">
-            </div>
-            <div>
-              <label class="block text-xs font-semibold text-slate-400 mb-1.5">운영진 수수료/공제율 (%)</label>
-              <input type="number" id="feeRateInput" value="10" oninput="calculateDistributions()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3.5 py-2 text-white font-mono text-lg focus:outline-none focus:border-brand-accent">
-            </div>
-            <div>
-              <label class="block text-xs font-semibold text-slate-400 mb-1.5">분배 대상 인원</label>
-              <div id="eligibleCount" class="w-full bg-slate-800/60 border border-slate-700/60 rounded-lg px-3.5 py-2 text-brand-gold font-mono text-lg font-bold">
-                ${members.length}명
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Distribution Output Table -->
-        <div class="bg-brand-card border border-brand-border rounded-xl overflow-hidden shadow-xl">
-          <div class="p-4 bg-slate-900/60 border-b border-brand-border flex items-center justify-between">
-            <h3 class="font-bold text-white text-sm">최종 분배 예상 내역</h3>
-            <span id="netDiamondText" class="text-xs font-mono text-brand-accent">정산 가능 다이아: 9,000 Dia</span>
-          </div>
-          <div class="overflow-x-auto">
-            <table class="w-full text-left text-sm text-slate-300">
-              <thead class="bg-slate-900/80 text-xs font-semibold text-slate-400 uppercase tracking-wider border-b border-brand-border">
-                <tr>
-                  <th class="py-3.5 px-4">클랜원</th>
-                  <th class="py-3.5 px-4 text-center">출석 점수</th>
-                  <th class="py-3.5 px-4 text-right">전투력</th>
-                  <th class="py-3.5 px-4 text-right">지분율 (%)</th>
-                  <th class="py-3.5 px-4 text-right">수령 예상 다이아</th>
-                </tr>
-              </thead>
-              <tbody id="distributionTableBody" class="divide-y divide-brand-border/60">
-                <!-- Calculated dynamically -->
-              </tbody>
-            </table>
-          </div>
-        </div>
-      `;
-
-      // Trigger initial calculation
-      setTimeout(calculateDistributions, 50);
-    }
-
-    window.calculateDistributions = function() {
-      const state = window.getClanState();
-      const members = state.members || [];
-      const attendance = state.attendance || [];
-
-      const totalDia = parseFloat(document.getElementById('totalDiaInput')?.value) || 0;
-      const feeRate = parseFloat(document.getElementById('feeRateInput')?.value) || 0;
-
-      const netDia = totalDia * (1 - (feeRate / 100));
-      const netText = document.getElementById('netDiamondText');
-      if (netText) netText.innerText = `정산 가능 다이아: ${Math.floor(netDia).toLocaleString()} Dia`;
-
-      // Calculate total weight (Attendance Points * CP Weight)
-      let totalWeight = 0;
-      const memberCalculations = members.map(m => {
-        const att = attendance.find(a => a.memberId === m.id) || { points: 1 };
-        const pts = Math.max(att.points, 1); // Minimum score 1
-        const cpWeight = m.combatPower || 100000;
-        const scoreWeight = pts * (cpWeight / 100000);
-        totalWeight += scoreWeight;
-
-        return {
-          member: m,
-          points: att.points,
-          weight: scoreWeight
+        window.saveStateToFirestore = function() {
+            setDoc(docRef, state).catch(() => {
+                localStorage.setItem("dokdo_state", JSON.stringify(state));
+            });
         };
-      });
 
-      const tbody = document.getElementById('distributionTableBody');
-      if (!tbody) return;
+        window.getState = () => state;
+        window.getCurrentUser = () => currentUser;
+        window.setCurrentUser = (u) => { currentUser = u; renderApp(); };
+    </script>
 
-      tbody.innerHTML = memberCalculations.map(item => {
-        const share = totalWeight > 0 ? (item.weight / totalWeight) : 0;
-        const rewardDia = Math.floor(netDia * share);
+    <style>
+        body { background-color: #0b0f19; color: #e2e8f0; font-family: sans-serif; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
 
-        return `
-          <tr class="hover:bg-slate-800/40 transition">
-            <td class="py-3.5 px-4 font-bold text-white">${escapeHtml(item.member.name)}</td>
-            <td class="py-3.5 px-4 text-center font-mono text-brand-gold">${item.points}점</td>
-            <td class="py-3.5 px-4 text-right font-mono">${(item.member.combatPower).toLocaleString()}</td>
-            <td class="py-3.5 px-4 text-right font-mono text-slate-400">${(share * 100).toFixed(1)}%</td>
-            <td class="py-3.5 px-4 text-right font-mono font-bold text-lg text-cyan-400">
-              <i class="fa-solid fa-gem text-xs mr-1 text-cyan-400"></i>${rewardDia.toLocaleString()}
-            </td>
-          </tr>
-        `;
-      }).join('');
-    };
-
-    // --- 6. BOSS TIMERS VIEW ---
-    function renderTimers(container, state) {
-      const timers = state.bossTimers || [];
-
-      container.innerHTML = `
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h2 class="text-2xl font-bold font-display text-white">보스 젠 타임 계산기</h2>
-            <p class="text-sm text-slate-400">주요 보스 출현 타임 및 젠 시간을 관리합니다.</p>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-          ${timers.map(timer => `
-            <div class="bg-brand-card border border-brand-border rounded-xl p-6 flex flex-col justify-between space-y-4">
-              <div>
-                <div class="flex items-center justify-between mb-2">
-                  <h3 class="font-bold text-lg text-white">${escapeHtml(timer.name)}</h3>
-                  <span class="text-xs text-amber-400 bg-amber-950/60 border border-amber-500/30 px-2 py-0.5 rounded font-mono">${timer.intervalHours}시간 주기</span>
-                </div>
-                <div class="text-3xl font-display font-bold text-brand-accent font-mono my-3">${timer.time}</div>
-                <p class="text-xs text-slate-500">다음 예상 젠 타임 자동 계산 중</p>
-              </div>
-              <button onclick="alert('${timer.name} 보스 알림이 설정되었습니다.')" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-lg text-sm transition">
-                알림 받기
-              </button>
+    <!-- Auth Gateway Modal (ID / Password Sign In & Sign Up) -->
+    <div id="authModal" class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+        <div class="bg-cardBg border border-cyanAccent/30 rounded-xl p-6 w-full max-w-md shadow-2xl">
+            <div class="text-center mb-6">
+                <h1 class="text-3xl font-extrabold text-cyanAccent tracking-widest">DOKDO</h1>
+                <p class="text-xs text-gray-400 mt-1">VAMPIR CLAN MANAGEMENT SYSTEM</p>
             </div>
-          `).join('')}
+
+            <!-- Tab Switch -->
+            <div class="flex border-b border-gray-700 mb-6">
+                <button id="loginTabBtn" onclick="switchAuthTab('login')" class="flex-1 py-2 font-bold text-cyanAccent border-b-2 border-cyanAccent">로그인</button>
+                <button id="signupTabBtn" onclick="switchAuthTab('signup')" class="flex-1 py-2 font-bold text-gray-400 border-b-2 border-transparent hover:text-white">회원가입</button>
+            </div>
+
+            <!-- LOGIN FORM -->
+            <div id="loginForm">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">아이디 (게임 닉네임)</label>
+                        <input type="text" id="loginId" placeholder="예: DOKDO로이" class="w-full bg-darkBg border border-gray-700 rounded p-2.5 text-white focus:border-cyanAccent outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">비밀번호</label>
+                        <input type="password" id="loginPw" placeholder="비밀번호 입력" class="w-full bg-darkBg border border-gray-700 rounded p-2.5 text-white focus:border-cyanAccent outline-none">
+                    </div>
+                    <button onclick="handleLogin()" class="w-full bg-cyanAccent hover:bg-cyan-500 text-black font-bold py-3 rounded shadow transition mt-2">로그인</button>
+                </div>
+            </div>
+
+            <!-- SIGNUP FORM -->
+            <div id="signupForm" class="hidden">
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">사용할 아이디 (클랜 명단 연동 닉네임)</label>
+                        <input type="text" id="signupId" placeholder="예: DOKDO로이" class="w-full bg-darkBg border border-gray-700 rounded p-2.5 text-white focus:border-cyanAccent outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">비밀번호</label>
+                        <input type="password" id="signupPw" placeholder="비밀번호 설정" class="w-full bg-darkBg border border-gray-700 rounded p-2.5 text-white focus:border-cyanAccent outline-none">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">클래스(직업)</label>
+                            <select id="signupClass" class="w-full bg-darkBg border border-gray-700 rounded p-2.5 text-white outline-none">
+                                <option>검사</option>
+                                <option>마법사</option>
+                                <option>궁수</option>
+                                <option>암살자</option>
+                                <option>힐러</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">전투력</label>
+                            <input type="number" id="signupCp" placeholder="예: 150000" class="w-full bg-darkBg border border-gray-700 rounded p-2.5 text-white outline-none">
+                        </div>
+                    </div>
+                    <button onclick="handleSignup()" class="w-full bg-gold hover:bg-amber-500 text-black font-bold py-3 rounded shadow transition mt-2">회원가입 및 명단 등록</button>
+                </div>
+            </div>
         </div>
-      `;
-    }
+    </div>
 
-    // --- 7. LADDER MINI GAME ---
-    function renderLadder(container, state) {
-      const members = (state.members || []).slice(0, 6);
+    <!-- MAIN APP LAYOUT -->
+    <div id="mainApp" class="hidden flex-1 flex flex-col md:flex-row">
+        <!-- Sidebar Navigation -->
+        <aside class="w-full md:w-64 bg-cardBg border-r border-gray-800 p-4 flex flex-col justify-between">
+            <div>
+                <div class="flex items-center space-x-2 mb-8">
+                    <i data-lucide="shield" class="text-gold w-8 h-8"></i>
+                    <div>
+                        <h2 class="font-black text-xl text-white tracking-wider">DOKDO</h2>
+                        <span class="text-[10px] text-cyanAccent">CLAN SYSTEM</span>
+                    </div>
+                </div>
 
-      container.innerHTML = `
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h2 class="text-2xl font-bold font-display text-white">클랜원 사다리타기 미니게임</h2>
-            <p class="text-sm text-slate-400">아이템, 벌칙, 당번 정하기용 간이 사다리 게임입니다.</p>
-          </div>
-          <button onclick="drawLadderGame()" class="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-lg text-sm flex items-center space-x-2 transition shadow-md">
-            <i class="fa-solid fa-play"></i>
-            <span>사다리 생성/시작</span>
-          </button>
-        </div>
+                <nav class="space-y-1">
+                    <button onclick="switchTab('dashboard')" class="nav-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded text-sm font-semibold bg-cyanAccent/10 text-cyanAccent">
+                        <i data-lucide="layout-dashboard" class="w-4 h-4"></i><span>대시보드</span>
+                    </button>
+                    <button onclick="switchTab('notice')" class="nav-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded text-sm font-semibold text-gray-400 hover:bg-gray-800 hover:text-white">
+                        <i data-lucide="megaphone" class="w-4 h-4"></i><span>공지사항</span>
+                    </button>
+                    <button onclick="switchTab('members')" class="nav-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded text-sm font-semibold text-gray-400 hover:bg-gray-800 hover:text-white">
+                        <i data-lucide="users" class="w-4 h-4"></i><span>클랜원 명단</span>
+                    </button>
+                    <button onclick="switchTab('attendance')" class="nav-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded text-sm font-semibold text-gray-400 hover:bg-gray-800 hover:text-white">
+                        <i data-lucide="calendar-check" class="w-4 h-4"></i><span>출석 체크</span>
+                    </button>
+                    <button onclick="switchTab('diamonds')" class="nav-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded text-sm font-semibold text-gray-400 hover:bg-gray-800 hover:text-white">
+                        <i data-lucide="gem" class="w-4 h-4"></i><span>다이아 분배</span>
+                    </button>
+                </nav>
+            </div>
 
-        <div class="bg-brand-card border border-brand-border p-6 rounded-xl flex flex-col items-center justify-center">
-          <canvas id="ladderCanvas" width="600" height="400" class="w-full max-w-2xl border border-slate-800 rounded-lg shadow-inner"></canvas>
-          <div class="mt-4 text-xs text-slate-400 flex items-center space-x-2">
-            <i class="fa-solid fa-circle-info text-brand-accent"></i>
-            <span>상단 캐릭터명을 클릭하여 결과를 확인하세요.</span>
-          </div>
-        </div>
-      `;
+            <!-- Logged-in User Profile -->
+            <div class="pt-4 border-t border-gray-800 flex items-center justify-between">
+                <div>
+                    <div id="userDisplayName" class="text-sm font-bold text-white">---</div>
+                    <div id="userDisplayRole" class="text-xs text-gold">---</div>
+                </div>
+                <button onclick="handleLogout()" title="로그아웃" class="text-gray-400 hover:text-red-400">
+                    <i data-lucide="log-out" class="w-5 h-5"></i>
+                </button>
+            </div>
+        </aside>
 
-      setTimeout(drawLadderGame, 100);
-    }
+        <!-- Main Dynamic Content Container -->
+        <main class="flex-1 p-6 overflow-y-auto">
+            <!-- DASHBOARD TAB -->
+            <section id="tab-dashboard" class="tab-content active space-y-6">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-2xl font-bold text-white">클랜 대시보드</h2>
+                    <span class="text-xs bg-cyanAccent/20 text-cyanAccent px-3 py-1 rounded-full border border-cyanAccent/30">실시간 연동 중</span>
+                </div>
 
-    window.drawLadderGame = function() {
-      const canvas = document.getElementById('ladderCanvas');
-      if (!canvas) return;
-      const ctx = canvas.getContext('2d');
-      const state = window.getClanState();
-      const members = (state.members || []).slice(0, 5);
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-cardBg p-5 rounded-lg border border-gray-800">
+                        <span class="text-xs text-gray-400">전체 등록 클랜원</span>
+                        <p id="dashTotalMembers" class="text-3xl font-black text-cyanAccent mt-1">0 명</p>
+                    </div>
+                    <div class="bg-cardBg p-5 rounded-lg border border-gray-800">
+                        <span class="text-xs text-gray-400">클랜 총 전투력</span>
+                        <p id="dashTotalCp" class="text-3xl font-black text-gold mt-1">0</p>
+                    </div>
+                    <div class="bg-cardBg p-5 rounded-lg border border-gray-800">
+                        <span class="text-xs text-gray-400">평균 전투력</span>
+                        <p id="dashAvgCp" class="text-3xl font-black text-white mt-1">0</p>
+                    </div>
+                </div>
 
-      if (members.length < 2) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = '#9CA3AF';
-        ctx.font = '14px Inter';
-        ctx.fillText('최소 2명 이상의 클랜원이 필요합니다.', 180, 200);
-        return;
-      }
+                <!-- Notices Summary -->
+                <div class="bg-cardBg p-5 rounded-lg border border-gray-800">
+                    <h3 class="text-lg font-bold text-white mb-3 flex items-center space-x-2">
+                        <i data-lucide="bell" class="w-5 h-5 text-gold"></i><span>주요 클랜 공지</span>
+                    </h3>
+                    <div id="dashNoticeContainer" class="space-y-2 text-sm text-gray-300">
+                        <p class="text-gray-500">등록된 공지사항이 없습니다.</p>
+                    </div>
+                </div>
+            </section>
 
-      const numLines = members.length;
-      const width = canvas.width;
-      const height = canvas.height;
-      const padding = 60;
-      const stepX = (width - padding * 2) / (numLines - 1);
+            <!-- NOTICES TAB -->
+            <section id="tab-notice" class="tab-content space-y-6">
+                <h2 class="text-2xl font-bold text-white">클랜 공지사항 및 규칙</h2>
+                <div class="bg-cardBg p-5 rounded-lg border border-gray-800 space-y-4">
+                    <div id="noticeList" class="space-y-3"></div>
+                </div>
+            </section>
 
-      ctx.clearRect(0, 0, width, height);
+            <!-- MEMBERS TAB -->
+            <section id="tab-members" class="tab-content space-y-6">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-2xl font-bold text-white">클랜원 명단 및 역할 관리</h2>
+                </div>
 
-      // Draw Vertical Lines & Member Names
-      ctx.strokeStyle = '#374151';
-      ctx.lineWidth = 4;
-      ctx.font = '12px Inter';
-      ctx.fillStyle = '#F59E0B';
-      ctx.textAlign = 'center';
+                <div class="bg-cardBg rounded-lg border border-gray-800 overflow-x-auto">
+                    <table class="w-full text-left text-sm text-gray-300">
+                        <thead class="bg-gray-900 text-gray-400 uppercase text-xs">
+                            <tr>
+                                <th class="p-3">닉네임(아이디)</th>
+                                <th class="p-3">클래스</th>
+                                <th class="p-3">전투력</th>
+                                <th class="p-3">역할</th>
+                            </tr>
+                        </thead>
+                        <tbody id="memberTableBody" class="divide-y divide-gray-800"></tbody>
+                    </table>
+                </div>
+            </section>
 
-      for (let i = 0; i < numLines; i++) {
-        const x = padding + i * stepX;
-        ctx.beginPath();
-        ctx.moveTo(x, 50);
-        ctx.lineTo(x, height - 50);
-        ctx.stroke();
+            <!-- ATTENDANCE TAB -->
+            <section id="tab-attendance" class="tab-content space-y-6">
+                <h2 class="text-2xl font-bold text-white">출석 체크</h2>
+                <div class="bg-cardBg p-5 rounded-lg border border-gray-800">
+                    <p class="text-sm text-gray-400 mb-4">출석 체크를 클릭하면 실시간 현황에 즉시 반영됩니다.</p>
+                    <div id="attendanceList" class="space-y-3"></div>
+                </div>
+            </section>
 
-        ctx.fillText(members[i].name, x, 35);
-        ctx.fillText(`벌칙 ${i + 1}`, x, height - 25);
-      }
+            <!-- DIAMONDS TAB -->
+            <section id="tab-diamonds" class="tab-content space-y-6">
+                <h2 class="text-2xl font-bold text-white">💎 다이아 분배 계산기</h2>
+                <div class="bg-cardBg p-5 rounded-lg border border-gray-800 space-y-4">
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">분배할 총 다이아 수량</label>
+                        <input type="number" id="totalDiaInput" oninput="calculateDia()" placeholder="예: 100000" class="w-full bg-darkBg border border-gray-700 rounded p-3 text-white focus:border-cyanAccent outline-none">
+                    </div>
+                    <div id="diaResultTable" class="overflow-x-auto"></div>
+                </div>
+            </section>
+        </main>
+    </div>
 
-      // Generate Rungs
-      ctx.strokeStyle = '#06B6D4';
-      ctx.lineWidth = 2;
-      for (let i = 0; i < numLines - 1; i++) {
-        const x1 = padding + i * stepX;
-        const x2 = padding + (i + 1) * stepX;
-        for (let j = 0; j < 3; j++) {
-          const y = 80 + (j * 90) + (Math.random() * 30);
-          ctx.beginPath();
-          ctx.moveTo(x1, y);
-          ctx.lineTo(x2, y + (Math.random() * 20 - 10));
-          ctx.stroke();
+    <!-- Application Script -->
+    <script>
+        function switchAuthTab(tab) {
+            document.getElementById('loginForm').classList.toggle('hidden', tab !== 'login');
+            document.getElementById('signupForm').classList.toggle('hidden', tab !== 'signup');
+            
+            document.getElementById('loginTabBtn').className = tab === 'login' 
+                ? 'flex-1 py-2 font-bold text-cyanAccent border-b-2 border-cyanAccent' 
+                : 'flex-1 py-2 font-bold text-gray-400 border-b-2 border-transparent hover:text-white';
+                
+            document.getElementById('signupTabBtn').className = tab === 'signup' 
+                ? 'flex-1 py-2 font-bold text-gold border-b-2 border-gold' 
+                : 'flex-1 py-2 font-bold text-gray-400 border-b-2 border-transparent hover:text-white';
         }
-      }
-    };
 
-    // Global Modal Helpers
-    window.closeModal = function() {
-      document.getElementById('customModal').classList.add('hidden');
-    };
+        function handleSignup() {
+            const id = document.getElementById('signupId').value.trim();
+            const pw = document.getElementById('signupPw').value.trim();
+            const cls = document.getElementById('signupClass').value;
+            const cp = parseInt(document.getElementById('signupCp').value) || 0;
 
-    // Helper Utility: Safe HTML Escape
-    function escapeHtml(str) {
-      if (!str) return '';
-      return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-    }
+            if (!id || !pw) return alert("아이디와 비밀번호를 입력해주세요.");
 
-    // Initial View Render
-    window.renderCurrentTab();
-  </script>
+            const state = window.getState();
+            if (state.accounts && state.accounts[id]) return alert("이미 존재합니다.");
+
+            state.accounts = state.accounts || {};
+            state.accounts[id] = { password: pw, role: '일반 클랜원', class: cls, cp: cp };
+
+            state.members = state.members || [];
+            if (!state.members.some(m => m.username === id)) {
+                state.members.push({ username: id, class: cls, cp: cp, role: '일반 클랜원' });
+            }
+
+            window.saveStateToFirestore();
+            alert("회원가입이 완료되었습니다!");
+            window.setCurrentUser({ username: id, role: '일반 클랜원' });
+        }
+
+        function handleLogin() {
+            const id = document.getElementById('loginId').value.trim();
+            const pw = document.getElementById('loginPw').value.trim();
+
+            const state = window.getState();
+            if (state.accounts && state.accounts[id] && state.accounts[id].password === pw) {
+                window.setCurrentUser({ username: id, role: state.accounts[id].role || '일반 클랜원' });
+            } else {
+                alert("아이디 또는 비밀번호가 올바르지 않습니다.");
+            }
+        }
+
+        function handleLogout() {
+            window.setCurrentUser(null);
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.getElementById(`tab-${tabId}`).classList.add('active');
+        }
+
+        function renderApp() {
+            const user = window.getCurrentUser();
+            const state = window.getState();
+
+            if (!user) {
+                document.getElementById('authModal').classList.remove('hidden');
+                document.getElementById('mainApp').classList.add('hidden');
+                return;
+            }
+
+            document.getElementById('authModal').classList.add('hidden');
+            document.getElementById('mainApp').classList.remove('hidden');
+
+            document.getElementById('userDisplayName').innerText = user.username;
+            document.getElementById('userDisplayRole').innerText = user.role;
+
+            // Render Members
+            const members = state.members || [];
+            document.getElementById('dashTotalMembers').innerText = `${members.length} 명`;
+            
+            const totalCp = members.reduce((acc, cur) => acc + (cur.cp || 0), 0);
+            document.getElementById('dashTotalCp').innerText = totalCp.toLocaleString();
+            document.getElementById('dashAvgCp').innerText = members.length ? Math.round(totalCp / members.length).toLocaleString() : 0;
+
+            const tableBody = document.getElementById('memberTableBody');
+            tableBody.innerHTML = members.map(m => `
+                <tr class="hover:bg-gray-800/50">
+                    <td class="p-3 font-bold text-white">${m.username}</td>
+                    <td class="p-3">${m.class}</td>
+                    <td class="p-3 font-mono text-gold">${(m.cp || 0).toLocaleString()}</td>
+                    <td class="p-3 text-xs"><span class="bg-gray-800 px-2 py-1 rounded border border-gray-700">${m.role}</span></td>
+                </tr>
+            `).join('');
+
+            lucide.createIcons();
+        }
+
+        function calculateDia() {
+            const totalDia = parseInt(document.getElementById('totalDiaInput').value) || 0;
+            const members = window.getState().members || [];
+            
+            if (!members.length) return;
+            const perMember = Math.floor(totalDia / members.length);
+
+            document.getElementById('diaResultTable').innerHTML = `
+                <table class="w-full text-left text-sm text-gray-300 mt-4">
+                    <thead class="bg-gray-900 text-gray-400 uppercase text-xs">
+                        <tr><th class="p-2">닉네임</th><th class="p-2">분배 수량</th></tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-800">
+                        ${members.map(m => `
+                            <tr><td class="p-2">${m.username}</td><td class="p-2 font-bold text-cyanAccent">${perMember.toLocaleString()} 💎</td></tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+    </script>
 </body>
 </html>
