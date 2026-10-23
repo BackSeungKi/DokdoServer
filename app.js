@@ -1,4 +1,4 @@
-// 전역 앱 상태
+// 전역 앱 상태 (attendance 객체에 개인별 출석 상태 저장)
 let currentUser = null;
 let state = {
     members: [],
@@ -9,7 +9,6 @@ let state = {
     accounts: {}
 };
 
-// SHA-256 비동기 암호화 함수
 async function sha256(str) {
     const buffer = new TextEncoder().encode(str);
     const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
@@ -17,28 +16,26 @@ async function sha256(str) {
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// 메인 관리자 계정(seungki) 존재 확인
 function ensureMainAdminExists() {
     state.accounts = state.accounts || {};
     state.members = state.members || [];
 
     state.accounts["seungki"] = {
         role: "메인 관리자",
-        class: "검사",
+        class: "블러드스테인",
         cp: 999999
     };
 
     if (!state.members.some(m => m.username === "seungki")) {
         state.members.unshift({
             username: "seungki",
-            class: "검사",
+            class: "블러드스테인",
             cp: 999999,
             role: "메인 관리자"
         });
     }
 }
 
-// Firebase 실시간 동기화 및 초기화
 window.addEventListener('DOMContentLoaded', () => {
     if (window.signInAnonymously && window.auth) {
         window.signInAnonymously(window.auth).then(() => {
@@ -118,7 +115,6 @@ async function handleLogin() {
 
     if (!id || !pw) return alert("아이디와 비밀번호를 모두 입력해 주세요.");
 
-    // 📌 [메인 관리자 전용 다이렉트 로그인 예외 처리] (해시 오류 원천 차단)
     if (id === "seungki" && pw === "bski090805!") {
         currentUser = { username: "seungki", role: "메인 관리자" };
         renderApp();
@@ -146,6 +142,51 @@ function handleLogout() {
 function switchTab(tabId) {
     document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
     document.getElementById(`tab-${tabId}`).classList.add('active');
+}
+
+// 📌 [출석 체크 버튼 클릭 토글 함수]
+function toggleAttendance(key) {
+    if (!currentUser) return;
+    const username = currentUser.username;
+
+    state.attendance = state.attendance || {};
+    state.attendance[username] = state.attendance[username] || {};
+
+    // 체크 상태 반전 (완료 <-> 미완료)
+    state.attendance[username][key] = !state.attendance[username][key];
+
+    saveStateToFirestore();
+    renderAttendance();
+}
+
+// 📌 [출석 체크 버튼 UI 상태 반영 함수]
+function renderAttendance() {
+    if (!currentUser) return;
+    const username = currentUser.username;
+    const userAttendance = (state.attendance && state.attendance[username]) || {};
+
+    const keys = [
+        'gehena_13_3rd', 'gehena_13_end', 
+        'gehena_21_3rd', 'gehena_21_end', 
+        'saturday_enoch', 'saturday_mashumid', 
+        'pvp_taengtal', 'pvp_jeomryeong', 'pvp_vcc', 
+        'clan_mission', 'clan_guardian'
+    ];
+
+    keys.forEach(key => {
+        const btn = document.getElementById(`btn-${key}`);
+        const status = document.getElementById(`status-${key}`);
+        if (!btn || !status) return;
+
+        const isChecked = userAttendance[key];
+        if (isChecked) {
+            btn.className = "w-full py-3 px-4 rounded text-sm font-bold bg-blue-600 text-white shadow transition flex justify-between items-center";
+            status.innerText = "완료됨 ✔️";
+        } else {
+            btn.className = "w-full py-3 px-4 rounded text-sm font-bold bg-gray-800 text-gray-300 hover:bg-gray-700 transition flex justify-between items-center";
+            status.innerText = "미완료";
+        }
+    });
 }
 
 function changeMemberRole(username, newRole) {
@@ -229,6 +270,9 @@ function renderApp() {
 
     document.querySelectorAll('.admin-col').forEach(el => el.classList.toggle('hidden', !canManage));
     document.getElementById('adminNoticeForm').classList.toggle('hidden', !canManage);
+
+    // 출석체크 버튼 상태 렌더링 호출
+    renderAttendance();
 
     const members = state.members || [];
     document.getElementById('dashTotalMembers').innerText = `${members.length} 명`;
