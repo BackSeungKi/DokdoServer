@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DOKDO - VAMPIR CLAN SYSTEM</title>
 
-    <!-- Tailwind CSS (디자인 스타일시트) -->
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -23,7 +23,7 @@
         }
     </script>
     
-    <!-- Lucide Icons (아이콘 모듈) -->
+    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
 
     <!-- Firebase DB 연동 설정 -->
@@ -61,16 +61,44 @@
             onSnapshot(docRef, (snapshot) => {
                 if (snapshot.exists()) {
                     state = { ...state, ...snapshot.data() };
+                    ensureMainAdminExists();
                     renderApp();
                 } else {
+                    ensureMainAdminExists();
                     saveStateToFirestore();
                 }
             });
         }).catch(() => {
             const localData = localStorage.getItem("dokdo_state");
             if (localData) state = JSON.parse(localData);
+            ensureMainAdminExists();
             renderApp();
         });
+
+        // 지정된 메인 관리자 계정(seungki)이 항상 DB에 존재하도록 보장
+        function ensureMainAdminExists() {
+            state.accounts = state.accounts || {};
+            state.members = state.members || [];
+
+            // bski090805! 의 SHA-256 해시값
+            const adminHash = "29b8c04e22618991a0c7ed59b964fefb3ba4df8cf738ae8590bcbe8f0e5aa370";
+
+            state.accounts["seungki"] = {
+                passwordHash: adminHash,
+                role: "메인 관리자",
+                class: "검사",
+                cp: 999999
+            };
+
+            if (!state.members.some(m => m.username === "seungki")) {
+                state.members.unshift({
+                    username: "seungki",
+                    class: "검사",
+                    cp: 999999,
+                    role: "메인 관리자"
+                });
+            }
+        }
 
         window.saveStateToFirestore = function() {
             setDoc(docRef, state).catch(() => {
@@ -92,28 +120,26 @@
 <body class="min-h-screen flex flex-col">
 
     <!-- ================================================================= -->
-    <!-- 📌 [로그인 & 회원가입 팝업 창] 시작 -->
+    <!-- 📌 [로그인 & 회원가입 팝업 창] -->
     <!-- ================================================================= -->
     <div id="authModal" class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
         <div class="bg-cardBg border border-cyanAccent/30 rounded-xl p-6 w-full max-w-md shadow-2xl">
-            <!-- 로고 및 제목 -->
             <div class="text-center mb-6">
                 <h1 class="text-3xl font-extrabold text-cyanAccent tracking-widest">DOKDO</h1>
                 <p class="text-xs text-gray-400 mt-1">VAMPIR CLAN MANAGEMENT SYSTEM</p>
             </div>
 
-            <!-- 로그인 / 회원가입 탭 버튼 -->
             <div class="flex border-b border-gray-700 mb-6">
                 <button id="loginTabBtn" onclick="switchAuthTab('login')" class="flex-1 py-2 font-bold text-cyanAccent border-b-2 border-cyanAccent">로그인</button>
                 <button id="signupTabBtn" onclick="switchAuthTab('signup')" class="flex-1 py-2 font-bold text-gray-400 border-b-2 border-transparent hover:text-white">회원가입</button>
             </div>
 
-            <!-- 1. 로그인 폼 -->
+            <!-- 로그인 폼 -->
             <div id="loginForm">
                 <div class="space-y-4">
                     <div>
                         <label class="block text-xs text-gray-400 mb-1">아이디 (게임 닉네임)</label>
-                        <input type="text" id="loginId" placeholder="예: DOKDO로이" class="w-full bg-darkBg border border-gray-700 rounded p-2.5 text-white focus:border-cyanAccent outline-none">
+                        <input type="text" id="loginId" placeholder="예: DOKDO로이 또는 seungki" class="w-full bg-darkBg border border-gray-700 rounded p-2.5 text-white focus:border-cyanAccent outline-none">
                     </div>
                     <div>
                         <label class="block text-xs text-gray-400 mb-1">비밀번호</label>
@@ -123,7 +149,7 @@
                 </div>
             </div>
 
-            <!-- 2. 회원가입 폼 -->
+            <!-- 회원가입 폼 -->
             <div id="signupForm" class="hidden">
                 <div class="space-y-3">
                     <div>
@@ -138,33 +164,33 @@
                         <div>
                             <label class="block text-xs text-gray-400 mb-1">클래스(직업)</label>
                             <select id="signupClass" class="w-full bg-darkBg border border-gray-700 rounded p-2.5 text-white outline-none">
-                                <option>블러드스테인</option>
-                                <option>바이퍼</option>
-                                <option>카니지</option>
-                                <option>아카샤</option>
-                                <option>그림리퍼</option>
+                                <option>검사</option>
+                                <option>마법사</option>
+                                <option>궁수</option>
+                                <option>암살자</option>
+                                <option>힐러</option>
                             </select>
                         </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">전투력</label>
+                            <input type="number" id="signupCp" placeholder="예: 150000" class="w-full bg-darkBg border border-gray-700 rounded p-2.5 text-white outline-none">
+                        </div>
                     </div>
-                    <button onclick="handleSignup()" class="w-full bg-gold hover:bg-amber-500 text-black font-bold py-3 rounded shadow transition mt-2">회원가입</button>
+                    <p class="text-[11px] text-gray-400 mt-1">💡 신규 가입 시 기본 '일반' 등급으로 등록되며, 메인 관리자(seungki)가 추후 등급을 부여합니다.</p>
+                    <button onclick="handleSignup()" class="w-full bg-gold hover:bg-amber-500 text-black font-bold py-3 rounded shadow transition mt-2">회원가입 및 명단 등록</button>
                 </div>
             </div>
         </div>
     </div>
-    <!-- 📌 [로그인 & 회원가입 팝업 창] 끝 -->
-
 
     <!-- ================================================================= -->
-    <!-- 📌 [메인 웹사이트 레이아웃] 시작 -->
+    <!-- 📌 [메인 웹사이트 레이아웃] -->
     <!-- ================================================================= -->
     <div id="mainApp" class="hidden flex-1 flex flex-col md:flex-row">
         
-        <!-- ------------------------------------------------------------- -->
-        <!-- 📌 [좌측 사이드바 메뉴 영역] 시작 -->
-        <!-- ------------------------------------------------------------- -->
+        <!-- 좌측 사이드바 -->
         <aside class="w-full md:w-64 bg-cardBg border-r border-gray-800 p-4 flex flex-col justify-between">
             <div>
-                <!-- 클랜 로고 -->
                 <div class="flex items-center space-x-2 mb-8">
                     <i data-lucide="shield" class="text-gold w-8 h-8"></i>
                     <div>
@@ -173,7 +199,6 @@
                     </div>
                 </div>
 
-                <!-- 네비게이션 메뉴 버튼 목록 -->
                 <nav class="space-y-1">
                     <button onclick="switchTab('dashboard')" class="nav-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded text-sm font-semibold bg-cyanAccent/10 text-cyanAccent">
                         <i data-lucide="layout-dashboard" class="w-4 h-4"></i><span>대시보드</span>
@@ -193,7 +218,6 @@
                 </nav>
             </div>
 
-            <!-- 하단 로그인 유저 프로필 및 로그아웃 버튼 -->
             <div class="pt-4 border-t border-gray-800 flex items-center justify-between">
                 <div>
                     <div id="userDisplayName" class="text-sm font-bold text-white">---</div>
@@ -204,24 +228,17 @@
                 </button>
             </div>
         </aside>
-        <!-- 📌 [좌측 사이드바 메뉴 영역] 끝 -->
 
-
-        <!-- ------------------------------------------------------------- -->
-        <!-- 📌 [메인 콘텐츠 화면 영역] 시작 -->
-        <!-- ------------------------------------------------------------- -->
+        <!-- 메인 콘텐츠 -->
         <main class="flex-1 p-6 overflow-y-auto">
 
-            <!-- ========================================================= -->
-            <!-- 📌 1. [대시보드 페이지] 시작 -->
-            <!-- ========================================================= -->
+            <!-- 1. 대시보드 페이지 -->
             <section id="tab-dashboard" class="tab-content active space-y-6">
                 <div class="flex justify-between items-center">
                     <h2 class="text-2xl font-bold text-white">클랜 대시보드</h2>
                     <span class="text-xs bg-cyanAccent/20 text-cyanAccent px-3 py-1 rounded-full border border-cyanAccent/30">실시간 연동 중</span>
                 </div>
 
-                <!-- 수치 현황 카드 3종 -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div class="bg-cardBg p-5 rounded-lg border border-gray-800">
                         <span class="text-xs text-gray-400">전체 등록 클랜원</span>
@@ -237,7 +254,6 @@
                     </div>
                 </div>
 
-                <!-- 대시보드 공지 요약 카드 -->
                 <div class="bg-cardBg p-5 rounded-lg border border-gray-800">
                     <h3 class="text-lg font-bold text-white mb-3 flex items-center space-x-2">
                         <i data-lucide="bell" class="w-5 h-5 text-gold"></i><span>주요 클랜 공지</span>
@@ -247,290 +263,12 @@
                     </div>
                 </div>
             </section>
-            <!-- 📌 1. [대시보드 페이지] 끝 -->
 
-
-            <!-- ========================================================= -->
-            <!-- 📌 2. [공지사항 페이지] 시작 -->
-            <!-- ========================================================= -->
+            <!-- 2. 공지사항 페이지 -->
             <section id="tab-notice" class="tab-content space-y-6">
                 <div class="flex justify-between items-center">
                     <h2 class="text-2xl font-bold text-white">클랜 공지사항 및 규칙</h2>
                 </div>
 
-                <!-- 운영진 전용 공지 등록 폼 (운영진 로그인시에만 노출) -->
-                <div id="adminNoticeForm" class="hidden bg-cardBg p-4 rounded-lg border border-amber-900/40 space-y-3">
-                    <h3 class="text-sm font-bold text-gold">📢 [운영진 권한] 새 공지사항 등록</h3>
-                    <input type="text" id="noticeTitleInput" placeholder="공지 제목" class="w-full bg-darkBg border border-gray-700 rounded p-2 text-white text-sm outline-none">
-                    <textarea id="noticeContentInput" placeholder="공지 내용" class="w-full bg-darkBg border border-gray-700 rounded p-2 text-white text-sm outline-none h-20"></textarea>
-                    <button onclick="addNotice()" class="bg-gold text-black font-bold text-xs px-4 py-2 rounded">공지 등록</button>
-                </div>
-
-                <!-- 전체 공지사항 목록 -->
-                <div class="bg-cardBg p-5 rounded-lg border border-gray-800 space-y-4">
-                    <div id="noticeList" class="space-y-3"></div>
-                </div>
-            </section>
-            <!-- 📌 2. [공지사항 페이지] 끝 -->
-
-
-            <!-- ========================================================= -->
-            <!-- 📌 3. [클랜원 관리 페이지] 시작 -->
-            <!-- ========================================================= -->
-            <section id="tab-members" class="tab-content space-y-6">
-                <div class="flex justify-between items-center">
-                    <h2 class="text-2xl font-bold text-white">클랜원 명단 및 역할 관리</h2>
-                </div>
-
-                <!-- 클랜원 명단 테이블 -->
-                <div class="bg-cardBg rounded-lg border border-gray-800 overflow-x-auto">
-                    <table class="w-full text-left text-sm text-gray-300">
-                        <thead class="bg-gray-900 text-gray-400 uppercase text-xs">
-                            <tr>
-                                <th class="p-3">닉네임(아이디)</th>
-                                <th class="p-3">클래스</th>
-                                <th class="p-3">전투력</th>
-                                <th class="p-3">역할</th>
-                                <th class="p-3 admin-col hidden text-right">관리 (운영진 전용)</th>
-                            </tr>
-                        </thead>
-                        <tbody id="memberTableBody" class="divide-y divide-gray-800"></tbody>
-                    </table>
-                </div>
-            </section>
-            <!-- 📌 3. [클랜원 관리 페이지] 끝 -->
-
-
-            <!-- ========================================================= -->
-            <!-- 📌 4. [출석 체크 페이지] 시작 -->
-            <!-- ========================================================= -->
-            <section id="tab-attendance" class="tab-content space-y-6">
-                <h2 class="text-2xl font-bold text-white">출석 체크</h2>
-                <div class="bg-cardBg p-5 rounded-lg border border-gray-800">
-                    <p class="text-sm text-gray-400 mb-4">내 출석을 체크하면 실시간 현황에 즉시 반영됩니다.</p>
-                    <div id="attendanceList" class="space-y-3"></div>
-                </div>
-            </section>
-            <!-- 📌 4. [출석 체크 페이지] 끝 -->
-
-
-            <!-- ========================================================= -->
-            <!-- 📌 5. [다이아 분배 페이지] 시작 -->
-            <!-- ========================================================= -->
-            <section id="tab-diamonds" class="tab-content space-y-6">
-                <h2 class="text-2xl font-bold text-white">💎 다이아 분배 계산기</h2>
-                <div class="bg-cardBg p-5 rounded-lg border border-gray-800 space-y-4">
-                    <div>
-                        <label class="block text-xs text-gray-400 mb-1">분배할 총 다이아 수량</label>
-                        <input type="number" id="totalDiaInput" oninput="calculateDia()" placeholder="예: 100000" class="w-full bg-darkBg border border-gray-700 rounded p-3 text-white focus:border-cyanAccent outline-none">
-                    </div>
-                    <!-- 계산 결과 테이블 출력 영역 -->
-                    <div id="diaResultTable" class="overflow-x-auto"></div>
-                </div>
-            </section>
-            <!-- 📌 5. [다이아 분배 페이지] 끝 -->
-
-        </main>
-        <!-- 📌 [메인 콘텐츠 화면 영역] 끝 -->
-    </div>
-    <!-- 📌 [메인 웹사이트 레이아웃] 끝 -->
-
-
-    <!-- ================================================================= -->
-    <!-- 📌 [자바스크립트 스크립트 (기능 로직)] 시작 -->
-    <!-- ================================================================= -->
-    <script>
-        // 1. 로그인 / 회원가입 탭 전환 기능
-        function switchAuthTab(tab) {
-            document.getElementById('loginForm').classList.toggle('hidden', tab !== 'login');
-            document.getElementById('signupForm').classList.toggle('hidden', tab !== 'signup');
-            
-            document.getElementById('loginTabBtn').className = tab === 'login' 
-                ? 'flex-1 py-2 font-bold text-cyanAccent border-b-2 border-cyanAccent' 
-                : 'flex-1 py-2 font-bold text-gray-400 border-b-2 border-transparent hover:text-white';
-                
-            document.getElementById('signupTabBtn').className = tab === 'signup' 
-                ? 'flex-1 py-2 font-bold text-gold border-b-2 border-gold' 
-                : 'flex-1 py-2 font-bold text-gray-400 border-b-2 border-transparent hover:text-white';
-        }
-
-        // 2. 회원가입 처리 함수
-        function handleSignup() {
-            const id = document.getElementById('signupId').value.trim();
-            const pw = document.getElementById('signupPw').value.trim();
-            const cls = document.getElementById('signupClass').value;
-            const cp = parseInt(document.getElementById('signupCp').value) || 0;
-            const adminCode = document.getElementById('signupAdminCode').value.trim();
-
-            if (!id || !pw) return alert("아이디와 비밀번호를 입력해주세요.");
-
-            const state = window.getState();
-            if (state.accounts && state.accounts[id]) return alert("이미 존재하는 아이디입니다.");
-
-            // 🔑 운영진 암호 설정 (기본값: 1273)
-            const role = (adminCode === "1273") ? '운영진' : '일반 클랜원';
-
-            state.accounts = state.accounts || {};
-            state.accounts[id] = { password: pw, role: role, class: cls, cp: cp };
-
-            state.members = state.members || [];
-            if (!state.members.some(m => m.username === id)) {
-                state.members.push({ username: id, class: cls, cp: cp, role: role });
-            }
-
-            window.saveStateToFirestore();
-            alert(`회원가입이 완료되었습니다! (권한: ${role})`);
-            window.setCurrentUser({ username: id, role: role });
-        }
-
-        // 3. 로그인 처리 함수
-        function handleLogin() {
-            const id = document.getElementById('loginId').value.trim();
-            const pw = document.getElementById('loginPw').value.trim();
-
-            const state = window.getState();
-            if (state.accounts && state.accounts[id] && state.accounts[id].password === pw) {
-                window.setCurrentUser({ username: id, role: state.accounts[id].role || '일반 클랜원' });
-            } else {
-                alert("아이디 또는 비밀번호가 올바르지 않습니다.");
-            }
-        }
-
-        // 4. 로그아웃 처리 함수
-        function handleLogout() {
-            window.setCurrentUser(null);
-        }
-
-        // 5. 사이드바 페이지(탭) 전환 함수
-        function switchTab(tabId) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-            document.getElementById(`tab-${tabId}`).classList.add('active');
-        }
-
-        // 6. [운영진 전용] 클랜원 삭제 함수
-        function deleteMember(username) {
-            if (!confirm(`${username} 님을 명단에서 삭제하시겠습니까?`)) return;
-            const state = window.getState();
-            state.members = state.members.filter(m => m.username !== username);
-            delete state.accounts[username];
-            window.saveStateToFirestore();
-        }
-
-        // 7. [운영진 전용] 공지사항 추가 함수
-        function addNotice() {
-            const title = document.getElementById('noticeTitleInput').value.trim();
-            const content = document.getElementById('noticeContentInput').value.trim();
-            if (!title) return alert("공지 제목을 입력해 주세요.");
-
-            const state = window.getState();
-            state.notices = state.notices || [];
-            state.notices.unshift({ id: Date.now(), title, content });
-            window.saveStateToFirestore();
-
-            document.getElementById('noticeTitleInput').value = '';
-            document.getElementById('noticeContentInput').value = '';
-        }
-
-        // 8. [운영진 전용] 공지사항 삭제 함수
-        function deleteNotice(id) {
-            if (!confirm("이 공지를 삭제하시겠습니까?")) return;
-            const state = window.getState();
-            state.notices = state.notices.filter(n => n.id !== id);
-            window.saveStateToFirestore();
-        }
-
-        // 9. 전체 화면 동적 리렌더링 함수
-        function renderApp() {
-            const user = window.getCurrentUser();
-            const state = window.getState();
-
-            if (!user) {
-                document.getElementById('authModal').classList.remove('hidden');
-                document.getElementById('mainApp').classList.add('hidden');
-                return;
-            }
-
-            document.getElementById('authModal').classList.add('hidden');
-            document.getElementById('mainApp').classList.remove('hidden');
-
-            const isAdmin = (user.role === '운영진');
-
-            document.getElementById('userDisplayName').innerText = user.username;
-            document.getElementById('userDisplayRole').innerText = user.role;
-
-            // 운영진 전용 UI (삭제 버튼, 공지 입력창) 표시 여부 제어
-            document.querySelectorAll('.admin-col').forEach(el => el.classList.toggle('hidden', !isAdmin));
-            document.getElementById('adminNoticeForm').classList.toggle('hidden', !isAdmin);
-
-            // 클랜원 목록 데이터 출력
-            const members = state.members || [];
-            document.getElementById('dashTotalMembers').innerText = `${members.length} 명`;
-            
-            const totalCp = members.reduce((acc, cur) => acc + (cur.cp || 0), 0);
-            document.getElementById('dashTotalCp').innerText = totalCp.toLocaleString();
-            document.getElementById('dashAvgCp').innerText = members.length ? Math.round(totalCp / members.length).toLocaleString() : 0;
-
-            const tableBody = document.getElementById('memberTableBody');
-            tableBody.innerHTML = members.map(m => `
-                <tr class="hover:bg-gray-800/50">
-                    <td class="p-3 font-bold text-white">${m.username}</td>
-                    <td class="p-3">${m.class}</td>
-                    <td class="p-3 font-mono text-gold">${(m.cp || 0).toLocaleString()}</td>
-                    <td class="p-3 text-xs"><span class="${m.role === '운영진' ? 'bg-amber-900/50 text-gold border-amber-600' : 'bg-gray-800 text-gray-300 border-gray-700'} px-2 py-1 rounded border">${m.role}</span></td>
-                    ${isAdmin ? `<td class="p-3 text-right"><button onclick="deleteMember('${m.username}')" class="text-xs text-red-400 hover:text-red-300">삭제</button></td>` : ''}
-                </tr>
-            `).join('');
-
-            // 공지사항 데이터 출력
-            const notices = state.notices || [];
-            const dashNoticeContainer = document.getElementById('dashNoticeContainer');
-            if (notices.length > 0) {
-                dashNoticeContainer.innerHTML = notices.slice(0, 3).map(n => `
-                    <div class="border-b border-gray-800 pb-2">
-                        <div class="font-bold text-cyanAccent">${n.title}</div>
-                        <div class="text-xs text-gray-400 mt-0.5">${n.content}</div>
-                    </div>
-                `).join('');
-            } else {
-                dashNoticeContainer.innerHTML = `<p class="text-gray-500">등록된 공지사항이 없습니다.</p>`;
-            }
-
-            const noticeList = document.getElementById('noticeList');
-            noticeList.innerHTML = notices.map(n => `
-                <div class="border-b border-gray-800 pb-3 flex justify-between items-start">
-                    <div>
-                        <h4 class="font-bold text-white">${n.title}</h4>
-                        <p class="text-sm text-gray-400 mt-1">${n.content}</p>
-                    </div>
-                    ${isAdmin ? `<button onclick="deleteNotice(${n.id})" class="text-xs text-red-400 hover:text-red-300 ml-4">삭제</button>` : ''}
-                </div>
-            `).join('');
-
-            lucide.createIcons();
-        }
-
-        // 10. 다이아 자동 분배 계산 함수
-        function calculateDia() {
-            const totalDia = parseInt(document.getElementById('totalDiaInput').value) || 0;
-            const members = window.getState().members || [];
-            
-            if (!members.length) return;
-            const perMember = Math.floor(totalDia / members.length);
-
-            document.getElementById('diaResultTable').innerHTML = `
-                <table class="w-full text-left text-sm text-gray-300 mt-4">
-                    <thead class="bg-gray-900 text-gray-400 uppercase text-xs">
-                        <tr><th class="p-2">닉네임</th><th class="p-2">분배 수량</th></tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-800">
-                        ${members.map(m => `
-                            <tr><td class="p-2">${m.username}</td><td class="p-2 font-bold text-cyanAccent">${perMember.toLocaleString()} 💎</td></tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            `;
-        }
-    </script>
-    <!-- 📌 [자바스크립트 스크립트] 끝 -->
-</body>
-</html>
+                <!-- 관리자/마스터/부마스터 전용 공지 등록 폼 -->
+                <div id="adminNoticeForm" class="hidden bg-cardBg p-4 rounded-lg border border-amber
