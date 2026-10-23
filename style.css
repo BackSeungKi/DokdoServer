@@ -1,14 +1,27 @@
-/* 전역 테마 및 탭 전환 스타일 */
+/* 기본 배경 및 글자 테마 설정 */
 body {
     background-color: #0b0f19;
     color: #e2e8f0;
     font-family: sans-serif;
 }
 
+/* 탭 전환 제어 */
 .tab-content {
     display: none;
 }
 
 .tab-content.active {
     display: block;
+}
+
+/* 📌 [입력창 글자색 가시성 개선] */
+/* 로그인/회원가입/공지사항 등의 입력 필드 글자색 및 배경 고정 */
+input, select, textarea {
+    background-color: #0f172a !important;
+    color: #ffffff !important;
+}
+
+/* 안내 문구(Placeholder) 글자색 */
+input::placeholder, textarea::placeholder {
+    color: #64748b !important;
 }
