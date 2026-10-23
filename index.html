@@ -5,28 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DOKDO - VAMPIR CLAN SYSTEM</title>
 
-    <!-- Tailwind CSS -->
+    <!-- Tailwind CSS & Lucide Icons -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        darkBg: '#0b0f19',
-                        cardBg: '#131b2e',
-                        borderBg: '#1e293b',
-                        gold: '#f59e0b',
-                        cyanAccent: '#06b6d4',
-                    }
-                }
-            }
-        }
-    </script>
-    
-    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
 
-    <!-- Firebase DB 연동 설정 -->
+    <!-- 커스텀 스타일시트 연결 -->
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Firebase App & Firestore SDK -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -45,83 +31,19 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        let currentUser = null;
-        let state = {
-            members: [],
-            notices: [
-                { id: 1, title: "DOKDO 클랜 시스템에 오신 것을 환영합니다.", content: "출석체크 및 다이아 정산을 편리하게 이용하세요." }
-            ],
-            attendance: {},
-            accounts: {}
-        };
-
-        const docRef = doc(db, "artifacts", "clan-app", "public", "data", "clan", "mainState");
-
-        signInAnonymously(auth).then(() => {
-            onSnapshot(docRef, (snapshot) => {
-                if (snapshot.exists()) {
-                    state = { ...state, ...snapshot.data() };
-                    ensureMainAdminExists();
-                    renderApp();
-                } else {
-                    ensureMainAdminExists();
-                    saveStateToFirestore();
-                }
-            });
-        }).catch(() => {
-            const localData = localStorage.getItem("dokdo_state");
-            if (localData) state = JSON.parse(localData);
-            ensureMainAdminExists();
-            renderApp();
-        });
-
-        // 지정된 메인 관리자 계정(seungki)이 항상 DB에 존재하도록 보장
-        function ensureMainAdminExists() {
-            state.accounts = state.accounts || {};
-            state.members = state.members || [];
-
-            // bski090805! 의 SHA-256 해시값
-            const adminHash = "29b8c04e22618991a0c7ed59b964fefb3ba4df8cf738ae8590bcbe8f0e5aa370";
-
-            state.accounts["seungki"] = {
-                passwordHash: adminHash,
-                role: "메인 관리자",
-                class: "검사",
-                cp: 999999
-            };
-
-            if (!state.members.some(m => m.username === "seungki")) {
-                state.members.unshift({
-                    username: "seungki",
-                    class: "검사",
-                    cp: 999999,
-                    role: "메인 관리자"
-                });
-            }
-        }
-
-        window.saveStateToFirestore = function() {
-            setDoc(docRef, state).catch(() => {
-                localStorage.setItem("dokdo_state", JSON.stringify(state));
-            });
-        };
-
-        window.getState = () => state;
-        window.getCurrentUser = () => currentUser;
-        window.setCurrentUser = (u) => { currentUser = u; renderApp(); };
+        window.dbDocRef = doc(db, "artifacts", "clan-app", "public", "data", "clan", "mainState");
+        window.signInAnonymously = signInAnonymously;
+        window.auth = auth;
+        window.onSnapshot = onSnapshot;
+        window.setDoc = setDoc;
     </script>
 
-    <style>
-        body { background-color: #0b0f19; color: #e2e8f0; font-family: sans-serif; }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
-    </style>
+    <!-- 메인 자바스크립트 연결 -->
+    <script src="app.js" defer></script>
 </head>
 <body class="min-h-screen flex flex-col">
 
-    <!-- ================================================================= -->
     <!-- 📌 [로그인 & 회원가입 팝업 창] -->
-    <!-- ================================================================= -->
     <div id="authModal" class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
         <div class="bg-cardBg border border-cyanAccent/30 rounded-xl p-6 w-full max-w-md shadow-2xl">
             <div class="text-center mb-6">
@@ -129,6 +51,7 @@
                 <p class="text-xs text-gray-400 mt-1">VAMPIR CLAN MANAGEMENT SYSTEM</p>
             </div>
 
+            <!-- 로그인 / 회원가입 탭 -->
             <div class="flex border-b border-gray-700 mb-6">
                 <button id="loginTabBtn" onclick="switchAuthTab('login')" class="flex-1 py-2 font-bold text-cyanAccent border-b-2 border-cyanAccent">로그인</button>
                 <button id="signupTabBtn" onclick="switchAuthTab('signup')" class="flex-1 py-2 font-bold text-gray-400 border-b-2 border-transparent hover:text-white">회원가입</button>
@@ -183,12 +106,9 @@
         </div>
     </div>
 
-    <!-- ================================================================= -->
-    <!-- 📌 [메인 웹사이트 레이아웃] -->
-    <!-- ================================================================= -->
+    <!-- 📌 [메인 레이아웃] -->
     <div id="mainApp" class="hidden flex-1 flex flex-col md:flex-row">
-        
-        <!-- 좌측 사이드바 -->
+        <!-- 사이드바 -->
         <aside class="w-full md:w-64 bg-cardBg border-r border-gray-800 p-4 flex flex-col justify-between">
             <div>
                 <div class="flex items-center space-x-2 mb-8">
@@ -229,10 +149,9 @@
             </div>
         </aside>
 
-        <!-- 메인 콘텐츠 -->
+        <!-- 콘텐츠 영역 -->
         <main class="flex-1 p-6 overflow-y-auto">
-
-            <!-- 1. 대시보드 페이지 -->
+            <!-- 1. 대시보드 -->
             <section id="tab-dashboard" class="tab-content active space-y-6">
                 <div class="flex justify-between items-center">
                     <h2 class="text-2xl font-bold text-white">클랜 대시보드</h2>
@@ -264,11 +183,67 @@
                 </div>
             </section>
 
-            <!-- 2. 공지사항 페이지 -->
+            <!-- 2. 공지사항 -->
             <section id="tab-notice" class="tab-content space-y-6">
                 <div class="flex justify-between items-center">
                     <h2 class="text-2xl font-bold text-white">클랜 공지사항 및 규칙</h2>
                 </div>
 
-                <!-- 관리자/마스터/부마스터 전용 공지 등록 폼 -->
-                <div id="adminNoticeForm" class="hidden bg-cardBg p-4 rounded-lg border border-amber
+                <div id="adminNoticeForm" class="hidden bg-cardBg p-4 rounded-lg border border-amber-900/40 space-y-3">
+                    <h3 id="noticeFormTitle" class="text-sm font-bold text-gold">📢 공지사항 등록</h3>
+                    <input type="text" id="noticeTitleInput" placeholder="공지 제목" class="w-full bg-darkBg border border-gray-700 rounded p-2 text-white text-sm outline-none">
+                    <textarea id="noticeContentInput" placeholder="공지 내용" class="w-full bg-darkBg border border-gray-700 rounded p-2 text-white text-sm outline-none h-20"></textarea>
+                    <button onclick="addNotice()" class="bg-gold text-black font-bold text-xs px-4 py-2 rounded">공지 등록</button>
+                </div>
+
+                <div class="bg-cardBg p-5 rounded-lg border border-gray-800 space-y-4">
+                    <div id="noticeList" class="space-y-3"></div>
+                </div>
+            </section>
+
+            <!-- 3. 클랜원 명단 -->
+            <section id="tab-members" class="tab-content space-y-6">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-2xl font-bold text-white">클랜원 명단 및 5단계 권한 관리</h2>
+                </div>
+
+                <div class="bg-cardBg rounded-lg border border-gray-800 overflow-x-auto">
+                    <table class="w-full text-left text-sm text-gray-300">
+                        <thead class="bg-gray-900 text-gray-400 uppercase text-xs">
+                            <tr>
+                                <th class="p-3">닉네임(아이디)</th>
+                                <th class="p-3">클래스</th>
+                                <th class="p-3">전투력</th>
+                                <th class="p-3">권한 등급</th>
+                                <th class="p-3 admin-col hidden text-right">관리 및 등급 변경</th>
+                            </tr>
+                        </thead>
+                        <tbody id="memberTableBody" class="divide-y divide-gray-800"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- 4. 출석 체크 -->
+            <section id="tab-attendance" class="tab-content space-y-6">
+                <h2 class="text-2xl font-bold text-white">출석 체크</h2>
+                <div class="bg-cardBg p-5 rounded-lg border border-gray-800">
+                    <p class="text-sm text-gray-400 mb-4">내 출석을 체크하면 실시간 현황에 즉시 반영됩니다.</p>
+                    <div id="attendanceList" class="space-y-3"></div>
+                </div>
+            </section>
+
+            <!-- 5. 다이아 분배 -->
+            <section id="tab-diamonds" class="tab-content space-y-6">
+                <h2 class="text-2xl font-bold text-white">💎 다이아 분배 계산기</h2>
+                <div class="bg-cardBg p-5 rounded-lg border border-gray-800 space-y-4">
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">분배할 총 다이아 수량</label>
+                        <input type="number" id="totalDiaInput" oninput="calculateDia()" placeholder="예: 100000" class="w-full bg-darkBg border border-gray-700 rounded p-3 text-white focus:border-cyanAccent outline-none">
+                    </div>
+                    <div id="diaResultTable" class="overflow-x-auto"></div>
+                </div>
+            </section>
+        </main>
+    </div>
+</body>
+</html>
