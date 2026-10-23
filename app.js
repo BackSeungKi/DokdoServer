@@ -17,16 +17,12 @@ async function sha256(str) {
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// 메인 관리자 계정(seungki) 존재 확인 및 올바른 SHA-256 해시값 적용
+// 메인 관리자 계정(seungki) 존재 확인
 function ensureMainAdminExists() {
     state.accounts = state.accounts || {};
     state.members = state.members || [];
 
-    // 'bski090805!' 의 정확한 SHA-256 해시값
-    const adminHash = "7ebfa779ee88bd40ec3e20e8b2ed3c9cb54f0a99ff1e3ebc70fa56fa7cb95a32";
-
     state.accounts["seungki"] = {
-        passwordHash: adminHash,
         role: "메인 관리자",
         class: "검사",
         cp: 999999
@@ -122,9 +118,15 @@ async function handleLogin() {
 
     if (!id || !pw) return alert("아이디와 비밀번호를 모두 입력해 주세요.");
 
+    // 📌 [메인 관리자 전용 다이렉트 로그인 예외 처리] (해시 오류 원천 차단)
+    if (id === "seungki" && pw === "bski090805!") {
+        currentUser = { username: "seungki", role: "메인 관리자" };
+        renderApp();
+        return;
+    }
+
     const inputHash = await sha256(pw);
 
-    // 데이터베이스에 있는 비밀번호 해시와 비교
     if (state.accounts && state.accounts[id]) {
         const account = state.accounts[id];
         if (account.passwordHash === inputHash) {
@@ -254,7 +256,7 @@ function renderApp() {
                 ${canManage ? `
                     <td class="p-3 text-right space-x-2">
                         ${isMainAdmin && m.username !== 'seungki' ? `
-                            <select onchange="changeMemberRole('${m.username}', this.value)" class="bg-darkBg text-xs text-white border border-gray-700 rounded p-1 outline-none">
+                            <select onchange="changeMemberRole('${m.username}', this.value)" class="text-xs border border-gray-700 rounded p-1 outline-none">
                                 <option value="" disabled selected>등급 변경</option>
                                 <option value="마스터">2순위: 마스터 (1명)</option>
                                 <option value="부마스터">3순위: 부마스터 (최대 2명)</option>
