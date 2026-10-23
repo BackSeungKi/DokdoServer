@@ -1,5 +1,11 @@
-// 전역 앱 상태 (members.js에서 정의한 clanData를 기본값으로 사용)
+// ==========================================
+// 📌 1. 전역 상태 및 초기화 설정
+// ==========================================
+
+// 현재 로그인한 사용자 정보 저장 변수
 let currentUser = null;
+
+// 앱 전체에서 사용하는 데이터 상태 (members.js의 clanData를 기본값으로 연동)
 let state = window.clanData || {
     members: [],
     notices: [],
@@ -7,6 +13,7 @@ let state = window.clanData || {
     accounts: {}
 };
 
+// 비밀번호 암호화를 위한 SHA-256 비동기 함수
 async function sha256(str) {
     const buffer = new TextEncoder().encode(str);
     const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
@@ -14,6 +21,7 @@ async function sha256(str) {
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+// 메인 관리자(seungki) 계정 및 권한이 누락되지 않도록 강제로 보장하는 함수
 function ensureMainAdminExists() {
     state.accounts = state.accounts || {};
     state.members = state.members || [];
@@ -34,6 +42,7 @@ function ensureMainAdminExists() {
     }
 }
 
+// 웹페이지가 처음 로드될 때 실행 (파이어베이스 실시간 데이터 동기화 또는 로컬 스토리지 연동)
 window.addEventListener('DOMContentLoaded', () => {
     if (window.signInAnonymously && window.auth) {
         window.signInAnonymously(window.auth).then(() => {
@@ -56,6 +65,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+// 현재 상태 데이터를 파이어베이스(또는 브라우저 로컬 스토리지)에 저장하는 함수
 function saveStateToFirestore() {
     if (window.setDoc && window.dbDocRef) {
         window.setDoc(window.dbDocRef, state).catch(() => {
@@ -66,6 +76,12 @@ function saveStateToFirestore() {
     }
 }
 
+
+// ==========================================
+// 📌 2. 인증(로그인 / 회원가입) 처리 로직
+// ==========================================
+
+// 로그인 및 회원가입 화면 탭 전환 함수
 function switchAuthTab(tab) {
     document.getElementById('loginForm').classList.toggle('hidden', tab !== 'login');
     document.getElementById('signupForm').classList.toggle('hidden', tab !== 'signup');
@@ -79,6 +95,7 @@ function switchAuthTab(tab) {
         : 'flex-1 py-2 font-bold text-gray-400 border-b-2 border-transparent hover:text-white';
 }
 
+// 신규 회원가입 처리 함수 (비밀번호 해시화 및 명단 추가)
 async function handleSignup() {
     const id = document.getElementById('signupId').value.trim();
     const pw = document.getElementById('signupPw').value.trim();
@@ -87,7 +104,6 @@ async function handleSignup() {
 
     if (!id || !pw) return alert("아이디와 비밀번호를 입력해주세요.");
     if (id === "seungki") return alert("해당 아이디는 예약된 메인 관리자 계정입니다.");
-
     if (state.accounts && state.accounts[id]) return alert("이미 존재하는 아이디입니다.");
 
     const pwHash = await sha256(pw);
@@ -107,12 +123,14 @@ async function handleSignup() {
     renderApp();
 }
 
+// 로그인 처리 함수 (메인 관리자 예외 처리 및 일반 유저 해시 검증)
 async function handleLogin() {
     const id = document.getElementById('loginId').value.trim();
     const pw = document.getElementById('loginPw').value.trim();
 
     if (!id || !pw) return alert("아이디와 비밀번호를 모두 입력해 주세요.");
 
+    // 메인 관리자(seungki) 계정 다이렉트 로그인 예외 처리
     if (id === "seungki" && pw === "bski090805!") {
         currentUser = { username: "seungki", role: "메인 관리자" };
         renderApp();
@@ -132,17 +150,24 @@ async function handleLogin() {
     alert("아이디 또는 비밀번호가 올바르지 않습니다.");
 }
 
+// 로그아웃 처리 함수
 function handleLogout() {
     currentUser = null;
     renderApp();
 }
 
+// 대시보드 메인 메뉴 탭 전환 함수
 function switchTab(tabId) {
     document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
     document.getElementById(`tab-${tabId}`).classList.add('active');
 }
 
-// 📌 [관리자 전용] 출석 체크 오픈 / 마감 설정 함수
+
+// ==========================================
+// 📌 3. 출석 체크 및 권한 제어 시스템
+// ==========================================
+
+// 1~3순위 관리자가 출석 체크를 오픈(활성화) 또는 마감하는 함수
 function toggleAttendanceStatus(isOpen) {
     if (!currentUser || !['메인 관리자', '마스터', '부마스터'].includes(currentUser.role)) {
         return alert("1~3순위 권한(메인 관리자, 마스터, 부마스터)을 가진 계정만 출석을 관리할 수 있습니다.");
@@ -169,11 +194,10 @@ function toggleAttendanceStatus(isOpen) {
     renderAttendance();
 }
 
-// 📌 [출석 토글 함수] (잠김 체크 추가)
+// 각 콘텐츠별 출석 버튼 클릭 시 완료/미완료 상태를 토글하는 함수 (출석 잠김 여부 검사)
 function toggleAttendance(key) {
     if (!currentUser) return;
 
-    // 출석 오픈 여부 확인
     const config = state.attendanceConfig || { isOpen: false };
     if (!config.isOpen) {
         return alert("현재 출석 체크가 활성화되지 않았습니다. 관리자(1~3순위)의 출석 오픈을 기다려주세요!");
@@ -189,7 +213,7 @@ function toggleAttendance(key) {
     renderAttendance();
 }
 
-// 📌 [출석 UI 렌더링 함수] (권한 및 오픈 상태 반영)
+// 출석 체크 화면의 UI 상태(잠김/진행중, 버튼 색상, 관리자 패널 표시 여부)를 갱신하는 함수
 function renderAttendance() {
     if (!currentUser) return;
 
@@ -245,6 +269,12 @@ function renderAttendance() {
     });
 }
 
+
+// ==========================================
+// 📌 4. 클랜원 관리 및 공지사항 기능
+// ==========================================
+
+// 클랜원의 등급(역할)을 변경하는 함수 (마스터 1명, 부마스터 최대 2명 제한 검사 포함)
 function changeMemberRole(username, newRole) {
     if (username === 'seungki' && newRole !== '메인 관리자') {
         return alert("메인 관리자(seungki)의 등급은 변경할 수 없습니다.");
@@ -275,6 +305,7 @@ function changeMemberRole(username, newRole) {
     alert(`${username} 님의 등급이 [${newRole}] (으)로 변경되었습니다.`);
 }
 
+// 클랜원을 명단에서 삭제하는 함수 (메인 관리자 전용)
 function deleteMember(username) {
     if (!currentUser || currentUser.role !== '메인 관리자') return alert("메인 관리자만 클랜원을 삭제할 수 있습니다.");
     if (username === 'seungki') return alert("메인 관리자 계정은 삭제할 수 없습니다.");
@@ -285,6 +316,7 @@ function deleteMember(username) {
     saveStateToFirestore();
 }
 
+// 새로운 공지사항을 등록하는 함수
 function addNotice() {
     const title = document.getElementById('noticeTitleInput').value.trim();
     const content = document.getElementById('noticeContentInput').value.trim();
@@ -298,6 +330,7 @@ function addNotice() {
     document.getElementById('noticeContentInput').value = '';
 }
 
+// 등록된 공지사항을 삭제하는 함수
 function deleteNotice(id) {
     if (!currentUser || (currentUser.role !== '메인 관리자' && currentUser.role !== '마스터')) {
         return alert("관리자 또는 마스터만 공지를 삭제할 수 있습니다.");
@@ -308,6 +341,12 @@ function deleteNotice(id) {
     saveStateToFirestore();
 }
 
+
+// ==========================================
+// 📌 5. 전체 화면 렌더링 및 유틸리티
+// ==========================================
+
+// 로그인 상태에 따라 화면 구조를 바꾸고 대시보드 정보를 갱신하는 핵심 렌더링 함수
 function renderApp() {
     if (!currentUser) {
         document.getElementById('authModal').classList.remove('hidden');
@@ -397,6 +436,7 @@ function renderApp() {
     lucide.createIcons();
 }
 
+// 입력한 총 다이아를 클랜원 수에 맞춰 엔분의일(1/N)로 공평하게 계산해주는 함수
 function calculateDia() {
     const totalDia = parseInt(document.getElementById('totalDiaInput').value) || 0;
     const members = state.members || [];
@@ -417,6 +457,3 @@ function calculateDia() {
         </table>
     `;
 }
-
-
-
