@@ -1,4 +1,3 @@
-// 전역 앱 상태 (attendance 객체에 개인별 출석 상태 저장)
 let currentUser = null;
 let state = {
     members: [],
@@ -144,7 +143,6 @@ function switchTab(tabId) {
     document.getElementById(`tab-${tabId}`).classList.add('active');
 }
 
-// 📌 [출석 체크 버튼 클릭 토글 함수]
 function toggleAttendance(key) {
     if (!currentUser) return;
     const username = currentUser.username;
@@ -152,14 +150,12 @@ function toggleAttendance(key) {
     state.attendance = state.attendance || {};
     state.attendance[username] = state.attendance[username] || {};
 
-    // 체크 상태 반전 (완료 <-> 미완료)
     state.attendance[username][key] = !state.attendance[username][key];
 
     saveStateToFirestore();
     renderAttendance();
 }
 
-// 📌 [출석 체크 버튼 UI 상태 반영 함수]
 function renderAttendance() {
     if (!currentUser) return;
     const username = currentUser.username;
@@ -271,7 +267,6 @@ function renderApp() {
     document.querySelectorAll('.admin-col').forEach(el => el.classList.toggle('hidden', !canManage));
     document.getElementById('adminNoticeForm').classList.toggle('hidden', !canManage);
 
-    // 출석체크 버튼 상태 렌더링 호출
     renderAttendance();
 
     const members = state.members || [];
