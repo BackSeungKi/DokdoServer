@@ -32,7 +32,6 @@
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { getFirestore, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // Firebase Configuration (Standard Public Config for Artifact Apps)
         const firebaseConfig = {
             apiKey: "AIzaSyDummyKey_For_Static_Canvas_App",
             authDomain: "clan-dokdo-app.firebaseapp.com",
@@ -46,31 +45,28 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // App State
-        let currentUser = null; // { username, class, cp, role }
+        let currentUser = null;
         let state = {
             members: [],
-            notices: [],
+            notices: [
+                { id: 1, title: "DOKDO 클랜 시스템에 오신 것을 환영합니다.", content: "출석체크 및 다이아 정산을 편리하게 이용하세요." }
+            ],
             attendance: {},
-            accounts: {} // { username: { password, role, class, cp } }
+            accounts: {}
         };
 
-        // Firestore Path
         const docRef = doc(db, "artifacts", "clan-app", "public", "data", "clan", "mainState");
 
-        // Realtime Sync
         signInAnonymously(auth).then(() => {
             onSnapshot(docRef, (snapshot) => {
                 if (snapshot.exists()) {
-                    const data = snapshot.data();
-                    state = { ...state, ...data };
+                    state = { ...state, ...snapshot.data() };
                     renderApp();
                 } else {
                     saveStateToFirestore();
                 }
             });
         }).catch(() => {
-            // Local fallback
             const localData = localStorage.getItem("dokdo_state");
             if (localData) state = JSON.parse(localData);
             renderApp();
@@ -95,7 +91,7 @@
 </head>
 <body class="min-h-screen flex flex-col">
 
-    <!-- Auth Gateway Modal (ID / Password Sign In & Sign Up) -->
+    <!-- Auth Gateway Modal -->
     <div id="authModal" class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
         <div class="bg-cardBg border border-cyanAccent/30 rounded-xl p-6 w-full max-w-md shadow-2xl">
             <div class="text-center mb-6">
@@ -150,6 +146,10 @@
                             <label class="block text-xs text-gray-400 mb-1">전투력</label>
                             <input type="number" id="signupCp" placeholder="예: 150000" class="w-full bg-darkBg border border-gray-700 rounded p-2.5 text-white outline-none">
                         </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gold mb-1">운영진 인증 암호 (선택사항)</label>
+                        <input type="password" id="signupAdminCode" placeholder="운영진만 입력 (일반 클랜원은 빈칸)" class="w-full bg-darkBg border border-amber-900/50 rounded p-2.5 text-white outline-none">
                     </div>
                     <button onclick="handleSignup()" class="w-full bg-gold hover:bg-amber-500 text-black font-bold py-3 rounded shadow transition mt-2">회원가입 및 명단 등록</button>
                 </div>
@@ -225,7 +225,6 @@
                     </div>
                 </div>
 
-                <!-- Notices Summary -->
                 <div class="bg-cardBg p-5 rounded-lg border border-gray-800">
                     <h3 class="text-lg font-bold text-white mb-3 flex items-center space-x-2">
                         <i data-lucide="bell" class="w-5 h-5 text-gold"></i><span>주요 클랜 공지</span>
@@ -238,7 +237,18 @@
 
             <!-- NOTICES TAB -->
             <section id="tab-notice" class="tab-content space-y-6">
-                <h2 class="text-2xl font-bold text-white">클랜 공지사항 및 규칙</h2>
+                <div class="flex justify-between items-center">
+                    <h2 class="text-2xl font-bold text-white">클랜 공지사항 및 규칙</h2>
+                </div>
+
+                <!-- Admin Notice Input -->
+                <div id="adminNoticeForm" class="hidden bg-cardBg p-4 rounded-lg border border-amber-900/40 space-y-3">
+                    <h3 class="text-sm font-bold text-gold">📢 [운영진 권한] 새 공지사항 등록</h3>
+                    <input type="text" id="noticeTitleInput" placeholder="공지 제목" class="w-full bg-darkBg border border-gray-700 rounded p-2 text-white text-sm outline-none">
+                    <textarea id="noticeContentInput" placeholder="공지 내용" class="w-full bg-darkBg border border-gray-700 rounded p-2 text-white text-sm outline-none h-20"></textarea>
+                    <button onclick="addNotice()" class="bg-gold text-black font-bold text-xs px-4 py-2 rounded">공지 등록</button>
+                </div>
+
                 <div class="bg-cardBg p-5 rounded-lg border border-gray-800 space-y-4">
                     <div id="noticeList" class="space-y-3"></div>
                 </div>
@@ -258,6 +268,7 @@
                                 <th class="p-3">클래스</th>
                                 <th class="p-3">전투력</th>
                                 <th class="p-3">역할</th>
+                                <th class="p-3 admin-col hidden text-right">관리</th>
                             </tr>
                         </thead>
                         <tbody id="memberTableBody" class="divide-y divide-gray-800"></tbody>
@@ -269,7 +280,7 @@
             <section id="tab-attendance" class="tab-content space-y-6">
                 <h2 class="text-2xl font-bold text-white">출석 체크</h2>
                 <div class="bg-cardBg p-5 rounded-lg border border-gray-800">
-                    <p class="text-sm text-gray-400 mb-4">출석 체크를 클릭하면 실시간 현황에 즉시 반영됩니다.</p>
+                    <p class="text-sm text-gray-400 mb-4">내 출석을 체크하면 실시간 현황에 즉시 반영됩니다.</p>
                     <div id="attendanceList" class="space-y-3"></div>
                 </div>
             </section>
@@ -308,65 +319,30 @@
             const pw = document.getElementById('signupPw').value.trim();
             const cls = document.getElementById('signupClass').value;
             const cp = parseInt(document.getElementById('signupCp').value) || 0;
+            const adminCode = document.getElementById('signupAdminCode').value.trim();
 
             if (!id || !pw) return alert("아이디와 비밀번호를 입력해주세요.");
 
             const state = window.getState();
-            if (state.accounts && state.accounts[id]) return alert("이미 존재합니다.");
+            if (state.accounts && state.accounts[id]) return alert("이미 존재하는 아이디입니다.");
+
+            // 운영진 코드 1273 확인
+            const role = (adminCode === "1273") ? '운영진' : '일반 클랜원';
 
             state.accounts = state.accounts || {};
-            state.accounts[id] = { password: pw, role: '일반 클랜원', class: cls, cp: cp };
+            state.accounts[id] = { password: pw, role: role, class: cls, cp: cp };
 
             state.members = state.members || [];
             if (!state.members.some(m => m.username === id)) {
-                state.members.push({ username: id, class: cls, cp: cp, role: '일반 클랜원' });
+                state.members.push({ username: id, class: cls, cp: cp, role: role });
             }
 
             window.saveStateToFirestore();
-            alert("회원가입이 완료되었습니다!");
-            window.setCurrentUser({ username: id, role: '일반 클랜원' });
+            alert(`회원가입이 완료되었습니다! (권한: ${role})`); window.setCurrentUser({ username: id, role: role }); }  function handleLogin() { const id = document.getElementById('loginId').value.trim(); const pw = document.getElementById('loginPw').value.trim();  const state = window.getState(); if (state.accounts && state.accounts[id] && state.accounts[id].password === pw) { window.setCurrentUser({ username: id, role: state.accounts[id].role \vert{}\vert{} '일반 클랜원' }); } else { alert("아이디 또는 비밀번호가 올바르지 않습니다."); } }  function handleLogout() { window.setCurrentUser(null); }  function switchTab(tabId) { document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active')); document.getElementById(`tab-${tabId}`).classList.add('active');
         }
 
-        function handleLogin() {
-            const id = document.getElementById('loginId').value.trim();
-            const pw = document.getElementById('loginPw').value.trim();
-
-            const state = window.getState();
-            if (state.accounts && state.accounts[id] && state.accounts[id].password === pw) {
-                window.setCurrentUser({ username: id, role: state.accounts[id].role || '일반 클랜원' });
-            } else {
-                alert("아이디 또는 비밀번호가 올바르지 않습니다.");
-            }
-        }
-
-        function handleLogout() {
-            window.setCurrentUser(null);
-        }
-
-        function switchTab(tabId) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-            document.getElementById(`tab-${tabId}`).classList.add('active');
-        }
-
-        function renderApp() {
-            const user = window.getCurrentUser();
-            const state = window.getState();
-
-            if (!user) {
-                document.getElementById('authModal').classList.remove('hidden');
-                document.getElementById('mainApp').classList.add('hidden');
-                return;
-            }
-
-            document.getElementById('authModal').classList.add('hidden');
-            document.getElementById('mainApp').classList.remove('hidden');
-
-            document.getElementById('userDisplayName').innerText = user.username;
-            document.getElementById('userDisplayRole').innerText = user.role;
-
-            // Render Members
-            const members = state.members || [];
-            document.getElementById('dashTotalMembers').innerText = `${members.length} 명`;
+        function deleteMember(username) {
+            if (!confirm(`${username} 님을 명단에서 삭제하시겠습니까?`)) return; const state = window.getState(); state.members = state.members.filter(m => m.username !== username); delete state.accounts[username]; window.saveStateToFirestore(); }  function addNotice() { const title = document.getElementById('noticeTitleInput').value.trim(); const content = document.getElementById('noticeContentInput').value.trim(); if (!title) return alert("공지 제목을 입력해 주세요.");  const state = window.getState(); state.notices = state.notices \vert{}\vert{} []; state.notices.unshift({ id: Date.now(), title, content }); window.saveStateToFirestore();  document.getElementById('noticeTitleInput').value = ''; document.getElementById('noticeContentInput').value = ''; }  function deleteNotice(id) { if (!confirm("이 공지를 삭제하시겠습니까?")) return; const state = window.getState(); state.notices = state.notices.filter(n => n.id !== id); window.saveStateToFirestore(); }  function renderApp() { const user = window.getCurrentUser(); const state = window.getState();  if (!user) { document.getElementById('authModal').classList.remove('hidden'); document.getElementById('mainApp').classList.add('hidden'); return; }  document.getElementById('authModal').classList.add('hidden'); document.getElementById('mainApp').classList.remove('hidden');  const isAdmin = (user.role === '운영진');  document.getElementById('userDisplayName').innerText = user.username; document.getElementById('userDisplayRole').innerText = user.role;  // 운영진 전용 UI 토글 document.querySelectorAll('.admin-col').forEach(el => el.classList.toggle('hidden', !isAdmin)); document.getElementById('adminNoticeForm').classList.toggle('hidden', !isAdmin);  // Members Data const members = state.members \vert{}\vert{} []; document.getElementById('dashTotalMembers').innerText = `${members.length} 명`;
             
             const totalCp = members.reduce((acc, cur) => acc + (cur.cp || 0), 0);
             document.getElementById('dashTotalCp').innerText = totalCp.toLocaleString();
@@ -378,8 +354,33 @@
                     <td class="p-3 font-bold text-white">${m.username}</td>
                     <td class="p-3">${m.class}</td>
                     <td class="p-3 font-mono text-gold">${(m.cp || 0).toLocaleString()}</td>
-                    <td class="p-3 text-xs"><span class="bg-gray-800 px-2 py-1 rounded border border-gray-700">${m.role}</span></td>
+                    <td class="p-3 text-xs"><span class="${m.role === '운영진' ? 'bg-amber-900/50 text-gold border-amber-600' : 'bg-gray-800 text-gray-300 border-gray-700'} px-2 py-1 rounded border">${m.role}</span></td>${isAdmin ? `<td class="p-3 text-right"><button onclick="deleteMember('${m.username}')" class="text-xs text-red-400 hover:text-red-300">삭제</button></td>` : ''}
                 </tr>
+            `).join('');
+
+            // Notices Data
+            const notices = state.notices || [];
+            const dashNoticeContainer = document.getElementById('dashNoticeContainer');
+            if (notices.length > 0) {
+                dashNoticeContainer.innerHTML = notices.slice(0, 3).map(n => `
+                    <div class="border-b border-gray-800 pb-2">
+                        <div class="font-bold text-cyanAccent">${n.title}</div>
+                        <div class="text-xs text-gray-400 mt-0.5">${n.content}</div>
+                    </div>
+                `).join('');
+            } else {
+                dashNoticeContainer.innerHTML = `<p class="text-gray-500">등록된 공지사항이 없습니다.</p>`;
+            }
+
+            const noticeList = document.getElementById('noticeList');
+            noticeList.innerHTML = notices.map(n => `
+                <div class="border-b border-gray-800 pb-3 flex justify-between items-start">
+                    <div>
+                        <h4 class="font-bold text-white">${n.title}</h4>
+                        <p class="text-sm text-gray-400 mt-1">${n.content}</p>
+                    </div>
+                    ${isAdmin ? `<button onclick="deleteNotice(${n.id})" class="text-xs text-red-400 hover:text-red-300 ml-4">삭제</button>` : ''}
+                </div>
             `).join('');
 
             lucide.createIcons();
@@ -396,15 +397,3 @@
                 <table class="w-full text-left text-sm text-gray-300 mt-4">
                     <thead class="bg-gray-900 text-gray-400 uppercase text-xs">
                         <tr><th class="p-2">닉네임</th><th class="p-2">분배 수량</th></tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-800">
-                        ${members.map(m => `
-                            <tr><td class="p-2">${m.username}</td><td class="p-2 font-bold text-cyanAccent">${perMember.toLocaleString()} 💎</td></tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            `;
-        }
-    </script>
-</body>
-</html>
