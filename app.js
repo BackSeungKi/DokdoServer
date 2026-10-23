@@ -17,13 +17,13 @@ async function sha256(str) {
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// 메인 관리자 계정(seungki) 존재 확인
+// 메인 관리자 계정(seungki) 존재 확인 및 올바른 SHA-256 해시값 적용
 function ensureMainAdminExists() {
     state.accounts = state.accounts || {};
     state.members = state.members || [];
 
-    // bski090805! 의 SHA-256 해시값
-    const adminHash = "29b8c04e22618991a0c7ed59b964fefb3ba4df8cf738ae8590bcbe8f0e5aa370";
+    // 'bski090805!' 의 정확한 SHA-256 해시값
+    const adminHash = "7ebfa779ee88bd40ec3e20e8b2ed3c9cb54f0a99ff1e3ebc70fa56fa7cb95a32";
 
     state.accounts["seungki"] = {
         passwordHash: adminHash,
@@ -42,7 +42,7 @@ function ensureMainAdminExists() {
     }
 }
 
-// Firebase 초기 동기화
+// Firebase 실시간 동기화 및 초기화
 window.addEventListener('DOMContentLoaded', () => {
     if (window.signInAnonymously && window.auth) {
         window.signInAnonymously(window.auth).then(() => {
@@ -124,6 +124,7 @@ async function handleLogin() {
 
     const inputHash = await sha256(pw);
 
+    // 데이터베이스에 있는 비밀번호 해시와 비교
     if (state.accounts && state.accounts[id]) {
         const account = state.accounts[id];
         if (account.passwordHash === inputHash) {
