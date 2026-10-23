@@ -19,7 +19,7 @@ body {
     display: block;
 }
 
-/* 3. 📌 [오직 텍스트 입력창만 타겟팅] 입력 필드 배경 및 글자색 강제 지정 */
+/* 3. 입력창(텍스트/비밀번호/숫자/셀렉트/텍스트에리어) 스타일 고정 */
 input[type="text"],
 input[type="password"],
 input[type="number"],
@@ -34,7 +34,24 @@ input::placeholder, textarea::placeholder {
     color: #64748b !important;
 }
 
-/* 5. 스크롤바 디자인 커스텀 (다크 모드에 맞춤) */
+/* 5. 📌 [버튼 배경 및 글자색 강제 고정] 평소에도 색상이 잘 보이도록 설정 */
+button.bg-cyanAccent {
+    background-color: #06b6d4 !important;
+    color: #000000 !important;
+}
+button.bg-cyanAccent:hover {
+    background-color: #22d3ee !important;
+}
+
+button.bg-gold {
+    background-color: #f59e0b !important;
+    color: #000000 !important;
+}
+button.bg-gold:hover {
+    background-color: #fbbf24 !important;
+}
+
+/* 6. 스크롤바 디자인 커스텀 (다크 모드에 맞춤) */
 ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
