@@ -240,39 +240,55 @@
                 </div>
             </section>
 
-            <!-- 4. Attendance Tab (출석 체크) -->
+<!-- 4. 출석 체크 페이지 -->
             <section id="tab-attendance" class="tab-content space-y-6">
                 <div class="flex justify-between items-center">
                     <h2 class="text-2xl font-bold text-white">출석 체크 및 콘텐츠 현황</h2>
-                    <span id="attendanceDateTitle" class="text-xs text-gold font-semibold">오늘의 출석 체크</span>
+                    <span id="attendanceStatusBadge" class="text-xs bg-red-900/50 text-red-400 border border-red-600 px-3 py-1 rounded-full font-bold">🔒 출석 마감/잠김</span>
                 </div>
 
+                <!-- 📌 [1~3순위 전용] 출석 활성화 / 비밀번호 설정 관리바 -->
+                <div id="attendanceAdminControl" class="hidden bg-cardBg p-4 rounded-lg border border-gold/40 space-y-3">
+                    <h3 class="text-sm font-bold text-gold flex items-center space-x-2">
+                        <i data-lucide="key" class="w-4 h-4"></i>
+                        <span>[관리자 전용] 오늘 출석 활성화 및 비밀번호 설정</span>
+                    </h3>
+                    <div class="flex flex-col sm:flex-row gap-2">
+                        <input type="password" id="attendanceOpenPw" placeholder="출석 활성화 비밀번호 입력" class="border border-gray-700 rounded p-2 text-sm outline-none flex-1">
+                        <button onclick="toggleAttendanceStatus(true)" class="bg-cyanAccent hover:bg-cyan-500 text-black font-bold text-xs px-4 py-2 rounded">출석 오픈(활성화)</button>
+                        <button onclick="toggleAttendanceStatus(false)" class="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-4 py-2 rounded">출석 마감(잠금)</button>
+                    </div>
+                </div>
+
+                <!-- 출석 버튼 그리드 영역 -->
                 <div class="space-y-6" id="attendanceContainer">
                     <!-- 게헨나 보스 -->
                     <div class="bg-cardBg p-5 rounded-lg border border-gray-800 space-y-3">
                         <div class="flex items-center space-x-2 text-amber-500 font-bold">
                             <i data-lucide="flame" class="w-5 h-5"></i>
-                            <span>게헨나 보스 <span class="text-xs text-gray-400 font-normal">3층전·마무리 각 0.5점 · 타임별 최대 1점 · 하루 최대 2점</span></span>
+                            <span>게헨나 보스 <span class="text-xs text-gray-400 font-normal">3층전·마무리 각 0.5점 · 타임별 최대 1점</span></span>
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- 13시 타임 -->
                             <div class="bg-darkBg p-4 rounded border border-gray-800 space-y-2">
                                 <div class="text-xs font-bold text-cyanAccent">☀️ 13시 타임</div>
                                 <div class="grid grid-cols-1 gap-2">
-                                    <button onclick="toggleAttendance('gehena_13_3rd')" id="btn-gehena_13_3rd" class="w-full py-3 px-4 rounded text-sm font-bold bg-gray-800 text-gray-300 hover:bg-cyan-600 transition flex justify-between items-center">
+                                    <button onclick="toggleAttendance('gehena_13_3rd')" id="btn-gehena_13_3rd" class="w-full py-3 px-4 rounded text-sm font-bold bg-gray-800 text-gray-300 transition flex justify-between items-center">
                                         <span>3층전</span><span id="status-gehena_13_3rd" class="text-xs">미완료</span>
                                     </button>
-                                    <button onclick="toggleAttendance('gehena_13_end')" id="btn-gehena_13_end" class="w-full py-3 px-4 rounded text-sm font-bold bg-gray-800 text-gray-300 hover:bg-cyan-600 transition flex justify-between items-center">
+                                    <button onclick="toggleAttendance('gehena_13_end')" id="btn-gehena_13_end" class="w-full py-3 px-4 rounded text-sm font-bold bg-gray-800 text-gray-300 transition flex justify-between items-center">
                                         <span>마무리</span><span id="status-gehena_13_end" class="text-xs">미완료</span>
                                     </button>
                                 </div>
                             </div>
+                            <!-- 21시 타임 -->
                             <div class="bg-darkBg p-4 rounded border border-gray-800 space-y-2">
                                 <div class="text-xs font-bold text-amber-400">🌙 21시 타임</div>
                                 <div class="grid grid-cols-1 gap-2">
-                                    <button onclick="toggleAttendance('gehena_21_3rd')" id="btn-gehena_21_3rd" class="w-full py-3 px-4 rounded text-sm font-bold bg-gray-800 text-gray-300 hover:bg-red-700 transition flex justify-between items-center">
+                                    <button onclick="toggleAttendance('gehena_21_3rd')" id="btn-gehena_21_3rd" class="w-full py-3 px-4 rounded text-sm font-bold bg-gray-800 text-gray-300 transition flex justify-between items-center">
                                         <span>3층전</span><span id="status-gehena_21_3rd" class="text-xs">미완료</span>
                                     </button>
-                                    <button onclick="toggleAttendance('gehena_21_end')" id="btn-gehena_21_end" class="w-full py-3 px-4 rounded text-sm font-bold bg-gray-800 text-gray-300 hover:bg-red-700 transition flex justify-between items-center">
+                                    <button onclick="toggleAttendance('gehena_21_end')" id="btn-gehena_21_end" class="w-full py-3 px-4 rounded text-sm font-bold bg-gray-800 text-gray-300 transition flex justify-between items-center">
                                         <span>마무리</span><span id="status-gehena_21_end" class="text-xs">미완료</span>
                                     </button>
                                 </div>
@@ -284,13 +300,13 @@
                     <div class="bg-cardBg p-5 rounded-lg border border-gray-800 space-y-3">
                         <div class="flex items-center space-x-2 text-emerald-400 font-bold">
                             <i data-lucide="shield" class="w-5 h-5"></i>
-                            <span>토요일 보스 <span class="text-xs text-gray-400 font-normal">에녹·마슈미드 각 0.5점 · 한 주 1점 / 서플 총 2점</span></span>
+                            <span>토요일 보스 <span class="text-xs text-gray-400 font-normal">에녹·마슈미드 각 0.5점</span></span>
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <button onclick="toggleAttendance('saturday_enoch')" id="btn-saturday_enoch" class="w-full py-3 px-4 rounded text-sm font-bold bg-gray-800 text-gray-300 hover:bg-yellow-700 transition flex justify-between items-center">
+                            <button onclick="toggleAttendance('saturday_enoch')" id="btn-saturday_enoch" class="w-full py-3 px-4 rounded text-sm font-bold bg-gray-800 text-gray-300 transition flex justify-between items-center">
                                 <span>에녹</span><span id="status-saturday_enoch" class="text-xs">미완료</span>
                             </button>
-                            <button onclick="toggleAttendance('saturday_mashumid')" id="btn-saturday_mashumid" class="w-full py-3 px-4 rounded text-sm font-bold bg-gray-800 text-gray-300 hover:bg-yellow-700 transition flex justify-between items-center">
+                            <button onclick="toggleAttendance('saturday_mashumid')" id="btn-saturday_mashumid" class="w-full py-3 px-4 rounded text-sm font-bold bg-gray-800 text-gray-300 transition flex justify-between items-center">
                                 <span>마슈미드</span><span id="status-saturday_mashumid" class="text-xs">미완료</span>
                             </button>
                         </div>
@@ -300,17 +316,17 @@
                     <div class="bg-cardBg p-5 rounded-lg border border-gray-800 space-y-3">
                         <div class="flex items-center space-x-2 text-purple-400 font-bold">
                             <i data-lucide="swords" class="w-5 h-5"></i>
-                            <span>PVP <span class="text-xs text-gray-400 font-normal">쟁탈전 시즌 1회 1점 · 점령전 주 1회 1점 · VCC 시즌 보너스 +1점</span></span>
+                            <span>PVP</span>
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <button onclick="toggleAttendance('pvp_taengtal')" id="btn-pvp_taengtal" class="w-full py-3 px-4 rounded text-sm font-bold bg-gray-800 text-gray-300 hover:bg-purple-700 transition flex justify-between items-center">
+                            <button onclick="toggleAttendance('pvp_taengtal')" id="btn-pvp_taengtal" class="w-full py-3 px-4 rounded text-sm font-bold bg-gray-800 text-gray-300 transition flex justify-between items-center">
                                 <span>쟁탈전</span><span id="status-pvp_taengtal" class="text-xs">미완료</span>
                             </button>
-                            <button onclick="toggleAttendance('pvp_jeomryeong')" id="btn-pvp_jeomryeong" class="w-full py-3 px-4 rounded text-sm font-bold bg-gray-800 text-gray-300 hover:bg-purple-700 transition flex justify-between items-center">
+                            <button onclick="toggleAttendance('pvp_jeomryeong')" id="btn-pvp_jeomryeong" class="w-full py-3 px-4 rounded text-sm font-bold bg-gray-800 text-gray-300 transition flex justify-between items-center">
                                 <span>점령전</span><span id="status-pvp_jeomryeong" class="text-xs">미완료</span>
                             </button>
                         </div>
-                        <button onclick="toggleAttendance('pvp_vcc')" id="btn-pvp_vcc" class="w-full py-3 px-4 rounded text-sm font-bold bg-gray-800 text-gray-300 hover:bg-purple-700 transition flex justify-between items-center">
+                        <button onclick="toggleAttendance('pvp_vcc')" id="btn-pvp_vcc" class="w-full py-3 px-4 rounded text-sm font-bold bg-gray-800 text-gray-300 transition flex justify-between items-center">
                             <span>VCC</span><span id="status-pvp_vcc" class="text-xs">미완료</span>
                         </button>
                     </div>
@@ -319,13 +335,13 @@
                     <div class="bg-cardBg p-5 rounded-lg border border-gray-800 space-y-3">
                         <div class="flex items-center space-x-2 text-teal-400 font-bold">
                             <i data-lucide="users" class="w-5 h-5"></i>
-                            <span>클랜 활동 <span class="text-xs text-gray-400 font-normal">클랜임무·클랜수호 각 2점</span></span>
+                            <span>클랜 활동</span>
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <button onclick="toggleAttendance('clan_mission')" id="btn-clan_mission" class="w-full py-3 px-4 rounded text-sm font-bold bg-gray-800 text-gray-300 hover:bg-teal-700 transition flex justify-between items-center">
+                            <button onclick="toggleAttendance('clan_mission')" id="btn-clan_mission" class="w-full py-3 px-4 rounded text-sm font-bold bg-gray-800 text-gray-300 transition flex justify-between items-center">
                                 <span>클랜임무</span><span id="status-clan_mission" class="text-xs">미완료</span>
                             </button>
-                            <button onclick="toggleAttendance('clan_guardian')" id="btn-clan_guardian" class="w-full py-3 px-4 rounded text-sm font-bold bg-gray-800 text-gray-300 hover:bg-teal-700 transition flex justify-between items-center">
+                            <button onclick="toggleAttendance('clan_guardian')" id="btn-clan_guardian" class="w-full py-3 px-4 rounded text-sm font-bold bg-gray-800 text-gray-300 transition flex justify-between items-center">
                                 <span>클랜수호</span><span id="status-clan_guardian" class="text-xs">미완료</span>
                             </button>
                         </div>
