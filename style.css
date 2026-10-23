@@ -1,11 +1,16 @@
-/* 기본 배경 및 글자 테마 설정 */
+/* ==========================================
+   📌 DOKDO VAMPIR CLAN - 전역 커스텀 스타일
+   ========================================== */
+
+/* 1. 기본 테마 및 전체 배경 지정 */
 body {
     background-color: #0b0f19;
     color: #e2e8f0;
-    font-family: sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    min-height: 100vh;
 }
 
-/* 탭 전환 제어 */
+/* 2. 탭 콘텐츠 표시 제어 */
 .tab-content {
     display: none;
 }
@@ -14,14 +19,32 @@ body {
     display: block;
 }
 
-/* 📌 [입력창 글자색 가시성 개선] */
-/* 로그인/회원가입/공지사항 등의 입력 필드 글자색 및 배경 고정 */
+/* 3. 입력창(Input, Select, Textarea) 글자색 및 배경 고정 (자동완성/흰색 겹침 방지) */
 input, select, textarea {
     background-color: #0f172a !important;
     color: #ffffff !important;
 }
 
-/* 안내 문구(Placeholder) 글자색 */
+/* 4. 입력창 안내 텍스트(Placeholder) 색상 지정 */
 input::placeholder, textarea::placeholder {
     color: #64748b !important;
+}
+
+/* 5. 스크롤바 디자인 커스텀 (다크 모드에 맞춤) */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #0b0f19;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #1e293b;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #06b6d4;
 }
