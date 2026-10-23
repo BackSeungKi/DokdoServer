@@ -142,10 +142,44 @@ function switchTab(tabId) {
     document.getElementById(`tab-${tabId}`).classList.add('active');
 }
 
+// 📌 [관리자 전용] 출석 체크 오픈 / 마감 설정 함수
+function toggleAttendanceStatus(isOpen) {
+    if (!currentUser || !['메인 관리자', '마스터', '부마스터'].includes(currentUser.role)) {
+        return alert("1~3순위 권한(메인 관리자, 마스터, 부마스터)을 가진 계정만 출석을 관리할 수 있습니다.");
+    }
+
+    const pwInput = document.getElementById('attendanceOpenPw').value.trim();
+
+    if (isOpen) {
+        if (!pwInput) return alert("출석을 활성화하려면 비밀번호를 입력해야 합니다.");
+        state.attendanceConfig = {
+            isOpen: true,
+            password: pwInput
+        };
+        alert("오늘의 출석 체크가 정상적으로 활성화(오픈) 되었습니다!");
+    } else {
+        state.attendanceConfig = {
+            isOpen: false,
+            password: ""
+        };
+        alert("오늘의 출석 체크가 마감(잠금) 되었습니다.");
+    }
+
+    saveStateToFirestore();
+    renderAttendance();
+}
+
+// 📌 [출석 토글 함수] (잠김 체크 추가)
 function toggleAttendance(key) {
     if (!currentUser) return;
-    const username = currentUser.username;
 
+    // 출석 오픈 여부 확인
+    const config = state.attendanceConfig || { isOpen: false };
+    if (!config.isOpen) {
+        return alert("현재 출석 체크가 활성화되지 않았습니다. 관리자(1~3순위)의 출석 오픈을 기다려주세요!");
+    }
+
+    const username = currentUser.username;
     state.attendance = state.attendance || {};
     state.attendance[username] = state.attendance[username] || {};
 
@@ -155,8 +189,29 @@ function toggleAttendance(key) {
     renderAttendance();
 }
 
+// 📌 [출석 UI 렌더링 함수] (권한 및 오픈 상태 반영)
 function renderAttendance() {
     if (!currentUser) return;
+
+    const canManage = ['메인 관리자', '마스터', '부마스터'].includes(currentUser.role);
+    const adminControl = document.getElementById('attendanceAdminControl');
+    if (adminControl) {
+        adminControl.classList.toggle('hidden', !canManage);
+    }
+
+    const config = state.attendanceConfig || { isOpen: false };
+    const badge = document.getElementById('attendanceStatusBadge');
+    
+    if (badge) {
+        if (config.isOpen) {
+            badge.className = "text-xs bg-emerald-900/50 text-emerald-400 border border-emerald-600 px-3 py-1 rounded-full font-bold";
+            badge.innerText = "🔓 출석 진행 중";
+        } else {
+            badge.className = "text-xs bg-red-900/50 text-red-400 border border-red-600 px-3 py-1 rounded-full font-bold";
+            badge.innerText = "🔒 출석 마감/잠김";
+        }
+    }
+
     const username = currentUser.username;
     const userAttendance = (state.attendance && state.attendance[username]) || {};
 
@@ -174,12 +229,18 @@ function renderAttendance() {
         if (!btn || !status) return;
 
         const isChecked = userAttendance[key];
-        if (isChecked) {
-            btn.className = "w-full py-3 px-4 rounded text-sm font-bold bg-blue-600 text-white shadow transition flex justify-between items-center";
-            status.innerText = "완료됨 ✔️";
+
+        if (!config.isOpen) {
+            btn.className = "w-full py-3 px-4 rounded text-sm font-bold bg-gray-900/50 text-gray-500 border border-gray-800 cursor-not-allowed flex justify-between items-center";
+            status.innerText = "🔒 잠김";
         } else {
-            btn.className = "w-full py-3 px-4 rounded text-sm font-bold bg-gray-800 text-gray-300 hover:bg-gray-700 transition flex justify-between items-center";
-            status.innerText = "미완료";
+            if (isChecked) {
+                btn.className = "w-full py-3 px-4 rounded text-sm font-bold bg-blue-600 text-white shadow transition flex justify-between items-center cursor-pointer";
+                status.innerText = "완료됨 ✔️";
+            } else {
+                btn.className = "w-full py-3 px-4 rounded text-sm font-bold bg-gray-800 text-gray-300 hover:bg-gray-700 transition flex justify-between items-center cursor-pointer";
+                status.innerText = "미완료";
+            }
         }
     });
 }
@@ -357,106 +418,5 @@ function calculateDia() {
     `;
 }
 
-// 📌 [관리자 전용] 출석 체크 오픈 / 마감 설정 함수
-function toggleAttendanceStatus(isOpen) {
-    if (!currentUser || !['메인 관리자', '마스터', '부마스터'].includes(currentUser.role)) {
-        return alert("1~3순위 권한(메인 관리자, 마스터, 부마스터)을 가진 계정만 출석을 관리할 수 있습니다.");
-    }
 
-    const pwInput = document.getElementById('attendanceOpenPw').value.trim();
-
-    if (isOpen) {
-        if (!pwInput) return alert("출석을 활성화하려면 비밀번호를 입력해야 합니다.");
-        state.attendanceConfig = {
-            isOpen: true,
-            password: pwInput
-        };
-        alert("오늘의 출석 체크가 정상적으로 활성화(오픈) 되었습니다!");
-    } else {
-        state.attendanceConfig = {
-            isOpen: false,
-            password: ""
-        };
-        alert("오늘의 출석 체크가 마감(잠금) 되었습니다.");
-    }
-
-    saveStateToFirestore();
-    renderAttendance();
-}
-
-// 📌 [출석 토글 함수] (잠김 체크 추가)
-function toggleAttendance(key) {
-    if (!currentUser) return;
-
-    // 출석 오픈 여부 확인
-    const config = state.attendanceConfig || { isOpen: false };
-    if (!config.isOpen) {
-        return alert("현재 출석 체크가 활성화되지 않았습니다. 관리자(1~3순위)의 출석 오픈을 기다려주세요!");
-    }
-
-    const username = currentUser.username;
-    state.attendance = state.attendance || {};
-    state.attendance[username] = state.attendance[username] || {};
-
-    state.attendance[username][key] = !state.attendance[username][key];
-
-    saveStateToFirestore();
-    renderAttendance();
-}
-
-// 📌 [출석 UI 렌더링 함수] (권한 및 오픈 상태 반영)
-function renderAttendance() {
-    if (!currentUser) return;
-
-    const canManage = ['메인 관리자', '마스터', '부마스터'].includes(currentUser.role);
-    const adminControl = document.getElementById('attendanceAdminControl');
-    if (adminControl) {
-        adminControl.classList.toggle('hidden', !canManage);
-    }
-
-    const config = state.attendanceConfig || { isOpen: false };
-    const badge = document.getElementById('attendanceStatusBadge');
-    
-    if (badge) {
-        if (config.isOpen) {
-            badge.className = "text-xs bg-emerald-900/50 text-emerald-400 border border-emerald-600 px-3 py-1 rounded-full font-bold";
-            badge.innerText = "🔓 출석 진행 중";
-        } else {
-            badge.className = "text-xs bg-red-900/50 text-red-400 border border-red-600 px-3 py-1 rounded-full font-bold";
-            badge.innerText = "🔒 출석 마감/잠김";
-        }
-    }
-
-    const username = currentUser.username;
-    const userAttendance = (state.attendance && state.attendance[username]) || {};
-
-    const keys = [
-        'gehena_13_3rd', 'gehena_13_end', 
-        'gehena_21_3rd', 'gehena_21_end', 
-        'saturday_enoch', 'saturday_mashumid', 
-        'pvp_taengtal', 'pvp_jeomryeong', 'pvp_vcc', 
-        'clan_mission', 'clan_guardian'
-    ];
-
-    keys.forEach(key => {
-        const btn = document.getElementById(`btn-${key}`);
-        const status = document.getElementById(`status-${key}`);
-        if (!btn || !status) return;
-
-        const isChecked = userAttendance[key];
-
-        if (!config.isOpen) {
-            btn.className = "w-full py-3 px-4 rounded text-sm font-bold bg-gray-900/50 text-gray-500 border border-gray-800 cursor-not-allowed flex justify-between items-center";
-            status.innerText = "🔒 잠김";
-        } else {
-            if (isChecked) {
-                btn.className = "w-full py-3 px-4 rounded text-sm font-bold bg-blue-600 text-white shadow transition flex justify-between items-center cursor-pointer";
-                status.innerText = "완료됨 ✔️";
-            } else {
-                btn.className = "w-full py-3 px-4 rounded text-sm font-bold bg-gray-800 text-gray-300 hover:bg-gray-700 transition flex justify-between items-center cursor-pointer";
-                status.innerText = "미완료";
-            }
-        }
-    });
-}
 
