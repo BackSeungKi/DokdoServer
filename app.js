@@ -167,40 +167,37 @@ function switchTab(tabId) {
 // 📌 3. 출석 체크 및 권한 제어 시스템
 // ==========================================
 
-// 1~3순위 관리자가 출석 체크를 오픈(활성화) 또는 마감하는 함수
-function toggleAttendanceStatus(isOpen) {
+// 📌 [관리자 전용] 특정 출석 항목만 개별 오픈/마감 설정 함수
+function toggleSingleOpen(key, isOpen) {
     if (!currentUser || !['메인 관리자', '마스터', '부마스터'].includes(currentUser.role)) {
         return alert("1~3순위 권한(메인 관리자, 마스터, 부마스터)을 가진 계정만 출석을 관리할 수 있습니다.");
     }
 
-    const pwInput = document.getElementById('attendanceOpenPw').value.trim();
+    const pwInput = document.getElementById(`pw-${key}`).value.trim();
+    state.attendanceConfigs = state.attendanceConfigs || {};
 
     if (isOpen) {
-        if (!pwInput) return alert("출석을 활성화하려면 비밀번호를 입력해야 합니다.");
-        state.attendanceConfig = {
-            isOpen: true,
-            password: pwInput
-        };
-        alert("오늘의 출석 체크가 정상적으로 활성화(오픈) 되었습니다!");
+        if (!pwInput) return alert("해당 항목을 오픈하려면 비밀번호를 입력해야 합니다.");
+        state.attendanceConfigs[key] = { isOpen: true, password: pwInput };
+        alert(`[${key}] 항목이 오픈되었습니다!`);
     } else {
-        state.attendanceConfig = {
-            isOpen: false,
-            password: ""
-        };
-        alert("오늘의 출석 체크가 마감(잠금) 되었습니다.");
+        state.attendanceConfigs[key] = { isOpen: false, password: "" };
+        alert(`[${key}] 항목이 마감(잠금)되었습니다.`);
     }
 
     saveStateToFirestore();
     renderAttendance();
 }
 
-// 각 콘텐츠별 출석 버튼 클릭 시 완료/미완료 상태를 토글하는 함수 (출석 잠김 여부 검사)
+// 📌 [개별 출석 토글 함수]
 function toggleAttendance(key) {
     if (!currentUser) return;
 
-    const config = state.attendanceConfig || { isOpen: false };
+    const configs = state.attendanceConfigs || {};
+    const config = configs[key] || { isOpen: false };
+
     if (!config.isOpen) {
-        return alert("현재 출석 체크가 활성화되지 않았습니다. 관리자(1~3순위)의 출석 오픈을 기다려주세요!");
+        return alert("이 출석 항목은 아직 관리자에 의해 오픈되지 않았습니다!");
     }
 
     const username = currentUser.username;
@@ -213,31 +210,20 @@ function toggleAttendance(key) {
     renderAttendance();
 }
 
-// 출석 체크 화면의 UI 상태(잠김/진행중, 버튼 색상, 관리자 패널 표시 여부)를 갱신하는 함수
+// 📌 [출석 UI 렌더링 함수] (각 버튼별 개별 잠김/오픈 상태 반영)
 function renderAttendance() {
     if (!currentUser) return;
 
     const canManage = ['메인 관리자', '마스터', '부마스터'].includes(currentUser.role);
-    const adminControl = document.getElementById('attendanceAdminControl');
-    if (adminControl) {
-        adminControl.classList.toggle('hidden', !canManage);
-    }
-
-    const config = state.attendanceConfig || { isOpen: false };
-    const badge = document.getElementById('attendanceStatusBadge');
     
-    if (badge) {
-        if (config.isOpen) {
-            badge.className = "text-xs bg-emerald-900/50 text-emerald-400 border border-emerald-600 px-3 py-1 rounded-full font-bold";
-            badge.innerText = "🔓 출석 진행 중";
-        } else {
-            badge.className = "text-xs bg-red-900/50 text-red-400 border border-red-600 px-3 py-1 rounded-full font-bold";
-            badge.innerText = "🔒 출석 마감/잠김";
-        }
-    }
+    // 관리자에게만 각 항목별 비밀번호 입력 및 오픈/잠금 버튼 노출
+    document.querySelectorAll('.admin-control-box').forEach(el => {
+        el.classList.toggle('hidden', !canManage);
+    });
 
     const username = currentUser.username;
     const userAttendance = (state.attendance && state.attendance[username]) || {};
+    const configs = state.attendanceConfigs || {};
 
     const keys = [
         'gehena_13_3rd', 'gehena_13_end', 
@@ -252,6 +238,7 @@ function renderAttendance() {
         const status = document.getElementById(`status-${key}`);
         if (!btn || !status) return;
 
+        const config = configs[key] || { isOpen: false };
         const isChecked = userAttendance[key];
 
         if (!config.isOpen) {
