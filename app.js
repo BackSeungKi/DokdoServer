@@ -10,7 +10,8 @@ let state = window.clanData || {
     members: [],
     notices: [],
     attendance: {},
-    accounts: {}
+    accounts: {},
+    attendanceConfigs: {} // 각 출석 항목별 개별 오픈 상태, 비밀번호 및 10분 만료시간 저장
 };
 
 // 비밀번호 암호화를 위한 SHA-256 비동기 함수
@@ -63,6 +64,11 @@ window.addEventListener('DOMContentLoaded', () => {
             renderApp();
         });
     }
+    
+    // ⏱️ 1초마다 남은 출석 카운트다운 타이머 UI 실시간 갱신
+    setInterval(() => {
+        if (currentUser) renderAttendance();
+    }, 1000);
 });
 
 // 현재 상태 데이터를 파이어베이스(또는 브라우저 로컬 스토리지)에 저장하는 함수
@@ -164,24 +170,36 @@ function switchTab(tabId) {
 
 
 // ==========================================
-// 📌 3. 출석 체크 및 권한 제어 시스템
+// 📌 3. 출석 체크 및 각 버튼별 개별 권한 제어 시스템 (seungki 예외 & 10분 타이머)
 // ==========================================
 
-// 📌 [관리자 전용] 특정 출석 항목만 개별 오픈/마감 설정 함수
+// 1~3순위 관리자가 특정 출석 버튼(항목)만 개별적으로 비밀번호를 걸고 오픈 또는 잠금 처리하는 함수
 function toggleSingleOpen(key, isOpen) {
     if (!currentUser || !['메인 관리자', '마스터', '부마스터'].includes(currentUser.role)) {
         return alert("1~3순위 권한(메인 관리자, 마스터, 부마스터)을 가진 계정만 출석을 관리할 수 있습니다.");
     }
 
-    const pwInput = document.getElementById(`pw-${key}`).value.trim();
+    const pwInput = document.getElementById(`pw-${key}`) ? document.getElementById(`pw-${key}`).value.trim() : "";
     state.attendanceConfigs = state.attendanceConfigs || {};
 
     if (isOpen) {
-        if (!pwInput) return alert("해당 항목을 오픈하려면 비밀번호를 입력해야 합니다.");
-        state.attendanceConfigs[key] = { isOpen: true, password: pwInput };
-        alert(`[${key}] 항목이 오픈되었습니다!`);
+        // 💡 메인 관리자(seungki)는 비밀번호 입력 없이도 무조건 즉시 오픈 가능하도록 예외 처리!
+        const isMainAdmin = (currentUser.username === 'seungki');
+        if (!isMainAdmin && !pwInput) {
+            return alert("해당 항목을 오픈하려면 비밀번호를 입력해야 합니다.");
+        }
+
+        // 현재 시각 기준 정확히 10분 후(600,000ms) 만료 시각 저장
+        const expireTime = Date.now() + (10 * 60 * 1000);
+
+        state.attendanceConfigs[key] = { 
+            isOpen: true, 
+            password: pwInput,
+            expireAt: expireTime 
+        };
+        alert(`[${key}] 항목이 오픈되었습니다! (지금부터 10분간 출석 가능)`);
     } else {
-        state.attendanceConfigs[key] = { isOpen: false, password: "" };
+        state.attendanceConfigs[key] = { isOpen: false, password: "", expireAt: null };
         alert(`[${key}] 항목이 마감(잠금)되었습니다.`);
     }
 
@@ -189,7 +207,7 @@ function toggleSingleOpen(key, isOpen) {
     renderAttendance();
 }
 
-// 📌 [개별 출석 토글 함수]
+// 각 콘텐츠별 출석 버튼 클릭 시 완료/미완료 상태를 토글하는 함수 (개별 항목 오픈 여부 및 10분 만료 검사)
 function toggleAttendance(key) {
     if (!currentUser) return;
 
@@ -198,6 +216,14 @@ function toggleAttendance(key) {
 
     if (!config.isOpen) {
         return alert("이 출석 항목은 아직 관리자에 의해 오픈되지 않았습니다!");
+    }
+
+    // 📌 10분 만료 시간 체크
+    if (config.expireAt && Date.now() > config.expireAt) {
+        config.isOpen = false;
+        saveStateToFirestore();
+        renderAttendance();
+        return alert("출석 가능 시간(10분)이 지나 마감되었습니다!");
     }
 
     const username = currentUser.username;
@@ -210,13 +236,13 @@ function toggleAttendance(key) {
     renderAttendance();
 }
 
-// 📌 [출석 UI 렌더링 함수] (각 버튼별 개별 잠김/오픈 상태 반영)
+// 출석 체크 화면의 UI 상태(개별 버튼 잠김/오픈 여부, 잔여 시간, 버튼 색상, 관리자 제어 패널)를 갱신하는 함수
 function renderAttendance() {
     if (!currentUser) return;
 
     const canManage = ['메인 관리자', '마스터', '부마스터'].includes(currentUser.role);
     
-    // 관리자에게만 각 항목별 비밀번호 입력 및 오픈/잠금 버튼 노출
+    // 관리자에게만 각 항목별 비밀번호 입력 및 오픈/잠금 버튼 박스 노출
     document.querySelectorAll('.admin-control-box').forEach(el => {
         el.classList.toggle('hidden', !canManage);
     });
@@ -241,16 +267,28 @@ function renderAttendance() {
         const config = configs[key] || { isOpen: false };
         const isChecked = userAttendance[key];
 
+        // 10분 만료 자동 처리
+        if (config.isOpen && config.expireAt && Date.now() > config.expireAt) {
+            config.isOpen = false;
+            saveStateToFirestore();
+        }
+
         if (!config.isOpen) {
             btn.className = "w-full py-3 px-4 rounded text-sm font-bold bg-gray-900/50 text-gray-500 border border-gray-800 cursor-not-allowed flex justify-between items-center";
             status.innerText = "🔒 잠김";
         } else {
+            // 남은 시간 계산 (분:초)
+            const remainingSec = Math.max(0, Math.floor((config.expireAt - Date.now()) / 1000));
+            const min = Math.floor(remainingSec / 60);
+            const sec = remainingSec % 60;
+            const timerStr = `⏱️ ${min}분 ${sec < 10 ? '0' : ''}${sec}초 남음`;
+
             if (isChecked) {
                 btn.className = "w-full py-3 px-4 rounded text-sm font-bold bg-blue-600 text-white shadow transition flex justify-between items-center cursor-pointer";
-                status.innerText = "완료됨 ✔️";
+                status.innerText = `완료됨 ✔️ (${timerStr})`;
             } else {
                 btn.className = "w-full py-3 px-4 rounded text-sm font-bold bg-gray-800 text-gray-300 hover:bg-gray-700 transition flex justify-between items-center cursor-pointer";
-                status.innerText = "미완료";
+                status.innerText = timerStr;
             }
         }
     });
