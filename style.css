@@ -19,7 +19,7 @@ body {
     display: block;
 }
 
-/* 3. 입력창(Input, Select, Textarea) 글자색 및 배경 고정 (자동완성/흰색 겹침 방지) */
+/* 3. 📌 [입력창 전용] 글자색 및 배경 고정 (버튼은 제외함!) */
 input, select, textarea {
     background-color: #0f172a !important;
     color: #ffffff !important;
