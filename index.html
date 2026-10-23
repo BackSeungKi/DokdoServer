@@ -1,249 +1,95 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DOKDO - VAMPIR CLAN SYSTEM</title>
-
-    <!-- Tailwind CSS & Lucide Icons -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-
-    <!-- 커스텀 스타일시트 연결 -->
-    <link rel="stylesheet" href="style.css">
-
-    <!-- Firebase App & Firestore SDK -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getFirestore, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyDummyKey_For_Static_Canvas_App",
-            authDomain: "clan-dokdo-app.firebaseapp.com",
-            projectId: "clan-dokdo-app",
-            storageBucket: "clan-dokdo-app.appspot.com",
-            messagingSenderId: "123456789012",
-            appId: "1:123456789012:web:abcdef123456789"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-
-        window.dbDocRef = doc(db, "artifacts", "clan-app", "public", "data", "clan", "mainState");
-        window.signInAnonymously = signInAnonymously;
-        window.auth = auth;
-        window.onSnapshot = onSnapshot;
-        window.setDoc = setDoc;
-    </script>
-
-    <!-- 메인 자바스크립트 연결 -->
-    <script src="app.js" defer></script>
-</head>
-<body class="min-h-screen flex flex-col">
-
-    <!-- 📌 [로그인 & 회원가입 팝업 창] -->
-    <div id="authModal" class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-        <div class="bg-cardBg border border-cyanAccent/30 rounded-xl p-6 w-full max-w-md shadow-2xl">
-            <div class="text-center mb-6">
-                <h1 class="text-3xl font-extrabold text-cyanAccent tracking-widest">DOKDO</h1>
-                <p class="text-xs text-gray-400 mt-1">VAMPIR CLAN MANAGEMENT SYSTEM</p>
-            </div>
-
-            <!-- 로그인 / 회원가입 탭 -->
-            <div class="flex border-b border-gray-700 mb-6">
-                <button id="loginTabBtn" onclick="switchAuthTab('login')" class="flex-1 py-2 font-bold text-cyanAccent border-b-2 border-cyanAccent">로그인</button>
-                <button id="signupTabBtn" onclick="switchAuthTab('signup')" class="flex-1 py-2 font-bold text-gray-400 border-b-2 border-transparent hover:text-white">회원가입</button>
-            </div>
-
-            <!-- 로그인 폼 -->
-            <div id="loginForm">
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-xs text-gray-400 mb-1">아이디 (게임 닉네임)</label>
-                        <input type="text" id="loginId" placeholder="예: DOKDO로이 또는 seungki" class="w-full bg-darkBg border border-gray-700 rounded p-2.5 text-white focus:border-cyanAccent outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-xs text-gray-400 mb-1">비밀번호</label>
-                        <input type="password" id="loginPw" placeholder="비밀번호 입력" class="w-full bg-darkBg border border-gray-700 rounded p-2.5 text-white focus:border-cyanAccent outline-none">
-                    </div>
-                    <button onclick="handleLogin()" class="w-full bg-cyanAccent hover:bg-cyan-500 text-black font-bold py-3 rounded shadow transition mt-2">로그인</button>
-                </div>
-            </div>
-
-            <!-- 회원가입 폼 -->
-            <div id="signupForm" class="hidden">
-                <div class="space-y-3">
-                    <div>
-                        <label class="block text-xs text-gray-400 mb-1">사용할 아이디 (클랜 명단 연동 닉네임)</label>
-                        <input type="text" id="signupId" placeholder="예: DOKDO로이" class="w-full bg-darkBg border border-gray-700 rounded p-2.5 text-white focus:border-cyanAccent outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-xs text-gray-400 mb-1">비밀번호</label>
-                        <input type="password" id="signupPw" placeholder="비밀번호 설정" class="w-full bg-darkBg border border-gray-700 rounded p-2.5 text-white focus:border-cyanAccent outline-none">
-                    </div>
-                    <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <label class="block text-xs text-gray-400 mb-1">클래스(직업)</label>
-                            <select id="signupClass" class="w-full bg-darkBg border border-gray-700 rounded p-2.5 text-white outline-none">
-                                <option>블러드스테인</option>
-                                <option>바이퍼</option>
-                                <option>카니지</option>
-                                <option>그림리퍼</option>
-                                <option>아카샤</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-xs text-gray-400 mb-1">전투력</label>
-                            <input type="number" id="signupCp" placeholder="예: 150000" class="w-full bg-darkBg border border-gray-700 rounded p-2.5 text-white outline-none">
-                        </div>
-                    </div>
-                    <p class="text-[11px] text-gray-400 mt-1">💡 신규 가입 시 기본 '일반' 등급으로 등록되며, 메인 관리자(seungki)가 추후 등급을 부여합니다.</p>
-                    <button onclick="handleSignup()" class="w-full bg-gold hover:bg-amber-500 text-black font-bold py-3 rounded shadow transition mt-2">회원가입 및 명단 등록</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 📌 [메인 레이아웃] -->
-    <div id="mainApp" class="hidden flex-1 flex flex-col md:flex-row">
-        <!-- 사이드바 -->
-        <aside class="w-full md:w-64 bg-cardBg border-r border-gray-800 p-4 flex flex-col justify-between">
-            <div>
-                <div class="flex items-center space-x-2 mb-8">
-                    <i data-lucide="shield" class="text-gold w-8 h-8"></i>
-                    <div>
-                        <h2 class="font-black text-xl text-white tracking-wider">DOKDO</h2>
-                        <span class="text-[10px] text-cyanAccent">CLAN SYSTEM</span>
-                    </div>
-                </div>
-
-                <nav class="space-y-1">
-                    <button onclick="switchTab('dashboard')" class="nav-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded text-sm font-semibold bg-cyanAccent/10 text-cyanAccent">
-                        <i data-lucide="layout-dashboard" class="w-4 h-4"></i><span>대시보드</span>
-                    </button>
-                    <button onclick="switchTab('notice')" class="nav-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded text-sm font-semibold text-gray-400 hover:bg-gray-800 hover:text-white">
-                        <i data-lucide="megaphone" class="w-4 h-4"></i><span>공지사항</span>
-                    </button>
-                    <button onclick="switchTab('members')" class="nav-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded text-sm font-semibold text-gray-400 hover:bg-gray-800 hover:text-white">
-                        <i data-lucide="users" class="w-4 h-4"></i><span>클랜원 명단</span>
-                    </button>
-                    <button onclick="switchTab('attendance')" class="nav-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded text-sm font-semibold text-gray-400 hover:bg-gray-800 hover:text-white">
-                        <i data-lucide="calendar-check" class="w-4 h-4"></i><span>출석 체크</span>
-                    </button>
-                    <button onclick="switchTab('diamonds')" class="nav-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded text-sm font-semibold text-gray-400 hover:bg-gray-800 hover:text-white">
-                        <i data-lucide="gem" class="w-4 h-4"></i><span>다이아 분배</span>
-                    </button>
-                </nav>
-            </div>
-
-            <div class="pt-4 border-t border-gray-800 flex items-center justify-between">
-                <div>
-                    <div id="userDisplayName" class="text-sm font-bold text-white">---</div>
-                    <div id="userDisplayRole" class="text-xs text-gold">---</div>
-                </div>
-                <button onclick="handleLogout()" title="로그아웃" class="text-gray-400 hover:text-red-400">
-                    <i data-lucide="log-out" class="w-5 h-5"></i>
-                </button>
-            </div>
-        </aside>
-
-        <!-- 콘텐츠 영역 -->
-        <main class="flex-1 p-6 overflow-y-auto">
-            <!-- 1. 대시보드 -->
-            <section id="tab-dashboard" class="tab-content active space-y-6">
-                <div class="flex justify-between items-center">
-                    <h2 class="text-2xl font-bold text-white">클랜 대시보드</h2>
-                    <span class="text-xs bg-cyanAccent/20 text-cyanAccent px-3 py-1 rounded-full border border-cyanAccent/30">실시간 연동 중</span>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div class="bg-cardBg p-5 rounded-lg border border-gray-800">
-                        <span class="text-xs text-gray-400">전체 등록 클랜원</span>
-                        <p id="dashTotalMembers" class="text-3xl font-black text-cyanAccent mt-1">0 명</p>
-                    </div>
-                    <div class="bg-cardBg p-5 rounded-lg border border-gray-800">
-                        <span class="text-xs text-gray-400">클랜 총 전투력</span>
-                        <p id="dashTotalCp" class="text-3xl font-black text-gold mt-1">0</p>
-                    </div>
-                    <div class="bg-cardBg p-5 rounded-lg border border-gray-800">
-                        <span class="text-xs text-gray-400">평균 전투력</span>
-                        <p id="dashAvgCp" class="text-3xl font-black text-white mt-1">0</p>
-                    </div>
-                </div>
-
-                <div class="bg-cardBg p-5 rounded-lg border border-gray-800">
-                    <h3 class="text-lg font-bold text-white mb-3 flex items-center space-x-2">
-                        <i data-lucide="bell" class="w-5 h-5 text-gold"></i><span>주요 클랜 공지</span>
-                    </h3>
-                    <div id="dashNoticeContainer" class="space-y-2 text-sm text-gray-300">
-                        <p class="text-gray-500">등록된 공지사항이 없습니다.</p>
-                    </div>
-                </div>
-            </section>
-
-            <!-- 2. 공지사항 -->
-            <section id="tab-notice" class="tab-content space-y-6">
-                <div class="flex justify-between items-center">
-                    <h2 class="text-2xl font-bold text-white">클랜 공지사항 및 규칙</h2>
-                </div>
-
-                <div id="adminNoticeForm" class="hidden bg-cardBg p-4 rounded-lg border border-amber-900/40 space-y-3">
-                    <h3 id="noticeFormTitle" class="text-sm font-bold text-gold">📢 공지사항 등록</h3>
-                    <input type="text" id="noticeTitleInput" placeholder="공지 제목" class="w-full bg-darkBg border border-gray-700 rounded p-2 text-white text-sm outline-none">
-                    <textarea id="noticeContentInput" placeholder="공지 내용" class="w-full bg-darkBg border border-gray-700 rounded p-2 text-white text-sm outline-none h-20"></textarea>
-                    <button onclick="addNotice()" class="bg-gold text-black font-bold text-xs px-4 py-2 rounded">공지 등록</button>
-                </div>
-
-                <div class="bg-cardBg p-5 rounded-lg border border-gray-800 space-y-4">
-                    <div id="noticeList" class="space-y-3"></div>
-                </div>
-            </section>
-
-            <!-- 3. 클랜원 명단 -->
-            <section id="tab-members" class="tab-content space-y-6">
-                <div class="flex justify-between items-center">
-                    <h2 class="text-2xl font-bold text-white">클랜원 명단 및 5단계 권한 관리</h2>
-                </div>
-
-                <div class="bg-cardBg rounded-lg border border-gray-800 overflow-x-auto">
-                    <table class="w-full text-left text-sm text-gray-300">
-                        <thead class="bg-gray-900 text-gray-400 uppercase text-xs">
-                            <tr>
-                                <th class="p-3">닉네임(아이디)</th>
-                                <th class="p-3">클래스</th>
-                                <th class="p-3">전투력</th>
-                                <th class="p-3">권한 등급</th>
-                                <th class="p-3 admin-col hidden text-right">관리 및 등급 변경</th>
-                            </tr>
-                        </thead>
-                        <tbody id="memberTableBody" class="divide-y divide-gray-800"></tbody>
-                    </table>
-                </div>
-            </section>
-
-            <!-- 4. 출석 체크 -->
+<!-- 4. 출석 체크 페이지 -->
             <section id="tab-attendance" class="tab-content space-y-6">
-                <h2 class="text-2xl font-bold text-white">출석 체크</h2>
-                <div class="bg-cardBg p-5 rounded-lg border border-gray-800">
-                    <p class="text-sm text-gray-400 mb-4">내 출석을 체크하면 실시간 현황에 즉시 반영됩니다.</p>
-                    <div id="attendanceList" class="space-y-3"></div>
+                <div class="flex justify-between items-center">
+                    <h2 class="text-2xl font-bold text-white">출석 체크 및 콘텐츠 현황</h2>
+                    <span id="attendanceDateTitle" class="text-xs text-gold font-semibold">오늘의 출석 체크</span>
                 </div>
-            </section>
 
-            <!-- 5. 다이아 분배 -->
-            <section id="tab-diamonds" class="tab-content space-y-6">
-                <h2 class="text-2xl font-bold text-white">💎 다이아 분배 계산기</h2>
-                <div class="bg-cardBg p-5 rounded-lg border border-gray-800 space-y-4">
-                    <div>
-                        <label class="block text-xs text-gray-400 mb-1">분배할 총 다이아 수량</label>
-                        <input type="number" id="totalDiaInput" oninput="calculateDia()" placeholder="예: 100000" class="w-full bg-darkBg border border-gray-700 rounded p-3 text-white focus:border-cyanAccent outline-none">
+                <!-- 출석 버튼 그리드 영역 -->
+                <div class="space-y-6" id="attendanceContainer">
+                    <!-- 게헨나 보스 -->
+                    <div class="bg-cardBg p-5 rounded-lg border border-gray-800 space-y-3">
+                        <div class="flex items-center space-x-2 text-amber-500 font-bold">
+                            <i data-lucide="flame" class="w-5 h-5"></i>
+                            <span>게헨나 보스 <span class="text-xs text-gray-400 font-normal">3층전·마무리 각 0.5점 · 타임별 최대 1점 · 하루 최대 2점</span></span>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- 13시 타임 -->
+                            <div class="bg-darkBg p-4 rounded border border-gray-800 space-y-2">
+                                <div class="text-xs font-bold text-cyanAccent">☀️ 13시 타임</div>
+                                <div class="grid grid-cols-1 gap-2">
+                                    <button onclick="toggleAttendance('gehena_13_3rd')" id="btn-gehena_13_3rd" class="w-full py-3 px-4 rounded text-sm font-bold bg-gray-800 text-gray-300 hover:bg-cyan-600 transition flex justify-between items-center">
+                                        <span>3층전</span><span id="status-gehena_13_3rd" class="text-xs">미완료</span>
+                                    </button>
+                                    <button onclick="toggleAttendance('gehena_13_end')" id="btn-gehena_13_end" class="w-full py-3 px-4 rounded text-sm font-bold bg-gray-800 text-gray-300 hover:bg-cyan-600 transition flex justify-between items-center">
+                                        <span>마무리</span><span id="status-gehena_13_end" class="text-xs">미완료</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <!-- 21시 타임 -->
+                            <div class="bg-darkBg p-4 rounded border border-gray-800 space-y-2">
+                                <div class="text-xs font-bold text-amber-400">🌙 21시 타임</div>
+                                <div class="grid grid-cols-1 gap-2">
+                                    <button onclick="toggleAttendance('gehena_21_3rd')" id="btn-gehena_21_3rd" class="w-full py-3 px-4 rounded text-sm font-bold bg-gray-800 text-gray-300 hover:bg-red-700 transition flex justify-between items-center">
+                                        <span>3층전</span><span id="status-gehena_21_3rd" class="text-xs">미완료</span>
+                                    </button>
+                                    <button onclick="toggleAttendance('gehena_21_end')" id="btn-gehena_21_end" class="w-full py-3 px-4 rounded text-sm font-bold bg-gray-800 text-gray-300 hover:bg-red-700 transition flex justify-between items-center">
+                                        <span>마무리</span><span id="status-gehena_21_end" class="text-xs">미완료</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div id="diaResultTable" class="overflow-x-auto"></div>
+
+                    <!-- 토요일 보스 -->
+                    <div class="bg-cardBg p-5 rounded-lg border border-gray-800 space-y-3">
+                        <div class="flex items-center space-x-2 text-emerald-400 font-bold">
+                            <i data-lucide="shield" class="w-5 h-5"></i>
+                            <span>토요일 보스 <span class="text-xs text-gray-400 font-normal">에녹·마슈미드 각 0.5점 · 한 주 1점 / 서플 총 2점</span></span>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <button onclick="toggleAttendance('saturday_enoch')" id="btn-saturday_enoch" class="w-full py-3 px-4 rounded text-sm font-bold bg-gray-800 text-gray-300 hover:bg-yellow-700 transition flex justify-between items-center">
+                                <span>에녹</span><span id="status-saturday_enoch" class="text-xs">미완료</span>
+                            </button>
+                            <button onclick="toggleAttendance('saturday_mashumid')" id="btn-saturday_mashumid" class="w-full py-3 px-4 rounded text-sm font-bold bg-gray-800 text-gray-300 hover:bg-yellow-700 transition flex justify-between items-center">
+                                <span>마슈미드</span><span id="status-saturday_mashumid" class="text-xs">미완료</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- PVP -->
+                    <div class="bg-cardBg p-5 rounded-lg border border-gray-800 space-y-3">
+                        <div class="flex items-center space-x-2 text-purple-400 font-bold">
+                            <i data-lucide="swords" class="w-5 h-5"></i>
+                            <span>PVP <span class="text-xs text-gray-400 font-normal">쟁탈전 시즌 1회 1점 · 점령전 주 1회 1점 · VCC 시즌 보너스 +1점</span></span>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <button onclick="toggleAttendance('pvp_taengtal')" id="btn-pvp_taengtal" class="w-full py-3 px-4 rounded text-sm font-bold bg-gray-800 text-gray-300 hover:bg-purple-700 transition flex justify-between items-center">
+                                <span>쟁탈전</span><span id="status-pvp_taengtal" class="text-xs">미완료</span>
+                            </button>
+                            <button onclick="toggleAttendance('pvp_jeomryeong')" id="btn-pvp_jeomryeong" class="w-full py-3 px-4 rounded text-sm font-bold bg-gray-800 text-gray-300 hover:bg-purple-700 transition flex justify-between items-center">
+                                <span>점령전</span><span id="status-pvp_jeomryeong" class="text-xs">미완료</span>
+                            </button>
+                        </div>
+                        <button onclick="toggleAttendance('pvp_vcc')" id="btn-pvp_vcc" class="w-full py-3 px-4 rounded text-sm font-bold bg-gray-800 text-gray-300 hover:bg-purple-700 transition flex justify-between items-center">
+                            <span>VCC</span><span id="status-pvp_vcc" class="text-xs">미완료</span>
+                        </button>
+                    </div>
+
+                    <!-- 클랜 활동 -->
+                    <div class="bg-cardBg p-5 rounded-lg border border-gray-800 space-y-3">
+                        <div class="flex items-center space-x-2 text-teal-400 font-bold">
+                            <i data-lucide="users" class="w-5 h-5"></i>
+                            <span>클랜 활동 <span class="text-xs text-gray-400 font-normal">클랜임무·클랜수호 각 2점</span></span>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <button onclick="toggleAttendance('clan_mission')" id="btn-clan_mission" class="w-full py-3 px-4 rounded text-sm font-bold bg-gray-800 text-gray-300 hover:bg-teal-700 transition flex justify-between items-center">
+                                <span>클랜임무</span><span id="status-clan_mission" class="text-xs">미완료</span>
+                            </button>
+                            <button onclick="toggleAttendance('clan_guardian')" id="btn-clan_guardian" class="w-full py-3 px-4 rounded text-sm font-bold bg-gray-800 text-gray-300 hover:bg-teal-700 transition flex justify-between items-center">
+                                <span>클랜수호</span><span id="status-clan_guardian" class="text-xs">미완료</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </section>
-        </main>
-    </div>
-</body>
-</html>
