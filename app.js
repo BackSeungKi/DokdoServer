@@ -1,9 +1,8 @@
+// 전역 앱 상태 (members.js에서 정의한 clanData를 기본값으로 사용)
 let currentUser = null;
-let state = {
+let state = window.clanData || {
     members: [],
-    notices: [
-        { id: 1, title: "DOKDO 클랜 시스템에 오신 것을 환영합니다.", content: "출석체크 및 다이아 정산을 편리하게 이용하세요." }
-    ],
+    notices: [],
     attendance: {},
     accounts: {}
 };
