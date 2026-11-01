@@ -129,6 +129,12 @@ async function handleSignup() {
     renderApp();
 }
 
+// 💡 HTML의 onclick에서 확실히 찾아 쓸 수 있도록 전역 객체(window)에 명시적 등록
+window.handleSignup = handleSignup;
+window.handleLogin = handleLogin;
+window.handleLogout = handleLogout;
+window.switchAuthTab = switchAuthTab;
+
 // 로그인 처리 함수 (메인 관리자 예외 처리 및 일반 유저 해시 검증)
 async function handleLogin() {
     const id = document.getElementById('loginId').value.trim();
