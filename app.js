@@ -183,6 +183,7 @@ function switchTab(tabId) {
 // 📌 3. 출석 체크 시스템
 // ==========================================
 
+
 function toggleSingleOpen(key, isOpen) {
     if (!currentUser || !['메인 관리자', '마스터', '부마스터'].includes(currentUser.role)) {
         return alert("1~3순위 권한(메인 관리자, 마스터, 부마스터)을 가진 계정만 출석을 관리할 수 있습니다.");
@@ -295,14 +296,15 @@ function renderAttendance() {
     });
 }
 
-// 📌 오픈/잠금 버튼과 출석 버튼이 나란히 배치되는 렌더링 예시
+// 📌 수정된 컨트롤 패널 렌더링 함수
 function renderControlPanel() {
-    const isClanOpen = state.isClanOpen; // 현재 클랜 오픈 상태 여부
+    const isClanOpen = state.isClanOpen;
+    const isManager = currentUser && ['메인 관리자', '마스터', '부마스터'].includes(currentUser.role);
 
     return `
         <div class="flex items-center space-x-2 bg-darkCard p-3 rounded-xl border border-gray-800">
-            <!-- 1. 기존 클랜 오픈/잠금 버튼 (관리자용) -->
-            ${['메인 관리자', '마스터', '부마스터'].includes(currentUser?.role) ? `
+            <!-- 1. 클랜 오픈/잠금 버튼 (관리자에게만 표시) -->
+            ${isManager ? `
                 <button onclick="toggleClanOpenState()" class="px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${
                     isClanOpen 
                         ? 'bg-red-900/30 border-red-600 text-red-400 hover:bg-red-900/50' 
@@ -312,7 +314,7 @@ function renderControlPanel() {
                 </button>
             ` : ''}
 
-            <!-- 2. 오픈/잠금 버튼 바로 옆에 나란히 배치된 '출석하기' 버튼 -->
+            <!-- 2. '출석하기' 버튼 (일반 클랜원 포함 로그인한 모든 사용자에게 표시) -->
             <button onclick="handleAttendanceClick()" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-cyanAccent/20 border border-cyanAccent text-cyanAccent hover:bg-cyanAccent hover:text-darkBg transition flex items-center space-x-1">
                 <span>📅 출석하기</span>
             </button>
@@ -382,9 +384,6 @@ function processAttendance() {
     renderApp();
     alert("출석체크가 완료되었습니다!");
 }
-
-window.handleAttendanceClick = handleAttendanceClick;
-
 
 // ==========================================
 // 📌 4. 클랜원 관리 및 공지사항 기능
