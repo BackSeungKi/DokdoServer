@@ -182,8 +182,6 @@ function switchTab(tabId) {
 // ==========================================
 // 📌 3. 출석 체크 시스템
 // ==========================================
-
-
 function toggleSingleOpen(key, isOpen) {
     if (!currentUser || !['메인 관리자', '마스터', '부마스터'].includes(currentUser.role)) {
         return alert("1~3순위 권한(메인 관리자, 마스터, 부마스터)을 가진 계정만 출석을 관리할 수 있습니다.");
@@ -296,14 +294,21 @@ function renderAttendance() {
     });
 }
 
-// 📌 수정된 컨트롤 패널 렌더링 함수
+// 📌 1. 상단에 비밀번호 입력창과 버튼을 렌더링하는 함수
 function renderControlPanel() {
     const isClanOpen = state.isClanOpen;
     const isManager = currentUser && ['메인 관리자', '마스터', '부마스터'].includes(currentUser.role);
 
     return `
         <div class="flex items-center space-x-2 bg-darkCard p-3 rounded-xl border border-gray-800">
-            <!-- 1. 클랜 오픈/잠금 버튼 (관리자에게만 표시) -->
+            <!-- 상단에 항상 노출되는 비밀번호 입력칸 -->
+            <div class="flex items-center space-x-1">
+                <span class="text-xs text-gray-400">비밀번호:</span>
+                <input type="password" id="clanPasswordInput" placeholder="비밀번호 입력" 
+                    class="bg-darkBg border border-gray-700 rounded p-1.5 text-xs text-white outline-none w-28 focus:border-cyanAccent">
+            </div>
+
+            <!-- 관리자에게는 '오픈/잠금' 버튼 표시 -->
             ${isManager ? `
                 <button onclick="toggleClanOpenState()" class="px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${
                     isClanOpen 
@@ -312,15 +317,56 @@ function renderControlPanel() {
                 }">
                     ${isClanOpen ? '🔓 클랜 오픈중 (잠그기)' : '🔒 클랜 잠금중 (열기)'}
                 </button>
-            ` : ''}
-
-            <!-- 2. '출석하기' 버튼 (일반 클랜원 포함 로그인한 모든 사용자에게 표시) -->
-            <button onclick="handleAttendanceClick()" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-cyanAccent/20 border border-cyanAccent text-cyanAccent hover:bg-cyanAccent hover:text-darkBg transition flex items-center space-x-1">
-                <span>📅 출석하기</span>
-            </button>
+            ` : `
+                <!-- 일반 클랜원에게는 '출석하기' 버튼 표시 -->
+                <button onclick="handleAttendanceWithTopInput()" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-cyanAccent/20 border border-cyanAccent text-cyanAccent hover:bg-cyanAccent hover:text-darkBg transition">
+                    📅 출석하기
+                </button>
+            `}
         </div>
     `;
 }
+
+// 📌 2. 상단 입력창의 비밀번호를 읽어서 검증하고 출석 처리하는 함수
+function handleAttendanceWithTopInput() {
+    if (!currentUser) {
+        return alert("로그인 후 이용해주세요.");
+    }
+
+    // 상단에 있는 비밀번호 입력창 가져오기
+    const passwordInput = document.getElementById('clanPasswordInput');
+    const inputPw = passwordInput ? passwordInput.value.trim() : "";
+
+    // 운영진이 설정한 클랜 비밀번호와 비교
+    if (state.clanPassword && state.clanPassword.trim() !== "") {
+        if (inputPw !== state.clanPassword) {
+            return alert("클랜 출석 비밀번호가 일치하지 않습니다!");
+        }
+    } else {
+        return alert("설정된 클랜 비밀번호가 없습니다. 운영진에게 문의하세요.");
+    }
+
+    // 오늘 날짜 기준 출석 처리
+    const today = new Date().toISOString().split('T')[0];
+    if (!state.attendance) state.attendance = {};
+    if (!state.attendance[today]) state.attendance[today] = [];
+
+    if (state.attendance[today].includes(currentUser.username)) {
+        return alert("이미 오늘 출석체크를 완료하셨습니다!");
+    }
+
+    // 출석 명단 추가
+    state.attendance[today].push(currentUser.username);
+    
+    // 파이어베이스 저장 및 화면 갱신
+    saveStateToFirestore();
+    renderApp();
+    alert("출석체크가 완료되었습니다!");
+}
+
+// 전역 등록
+window.renderControlPanel = renderControlPanel;
+window.handleAttendanceWithTopInput = handleAttendanceWithTopInput;
 
 // 📌 출석 체크 버튼을 눌렀을 때 실행되는 함수
 function handleAttendanceClick() {
