@@ -2,8 +2,9 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: ["main"] # 본인 저장소의 기본 브랜치 이름 (main 또는 master)
+    branches: ["main"] # 본인 저장소 브랜치 이름 (main 또는 master)
 
+# 📌 이 부분을 꼭 넣어주셔야 이전 배포가 자동 취소됩니다!
 concurrency:
   group: "pages"
   cancel-in-progress: true
