@@ -33,6 +33,33 @@
 
     <!-- 커스텀 스타일시트 연결 -->
     <link rel="stylesheet" href="style.css">
+
+    <!-- Firebase SDK (실시간 연동을 위한 모듈) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBg40c7gp4tPT0eRVQc6AL1L9ja1M3R-zg",
+            authDomain: "dokdo-clan-system.firebaseapp.com",
+            projectId: "dokdo-clan-system",
+            storageBucket: "dokdo-clan-system.firebasestorage.app",
+            messagingSenderId: "979474507123",
+            appId: "1:979474507123:web:23f1c5f2daea2512db9106",
+            measurementId: "G-3GQ7SY29X0"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        window.dbDocRef = doc(db, "artifacts", "clan-app", "public", "data", "clan", "mainState");
+        window.signInAnonymously = signInAnonymously;
+        window.auth = auth;
+        window.onSnapshot = onSnapshot;
+        window.setDoc = setDoc;
+    </script>
 </head>
 <body class="min-h-screen flex flex-col">
 
@@ -142,7 +169,7 @@
             <section id="tab-dashboard" class="tab-content active space-y-6">
                 <div class="flex justify-between items-center">
                     <h2 class="text-2xl font-bold text-white">클랜 대시보드</h2>
-                    <span class="text-xs bg-cyanAccent/20 text-cyanAccent px-3 py-1 rounded-full border border-cyanAccent/30">로컬 스토리지 모드</span>
+                    <span class="text-xs bg-cyanAccent/20 text-cyanAccent px-3 py-1 rounded-full border border-cyanAccent/30">실시간 연동 중</span>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
