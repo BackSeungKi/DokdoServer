@@ -481,3 +481,27 @@ function calculateDia() {
         </table>
     `;
 }
+
+// 📌 관리자(1~3순위)가 클원 전투력 수정 시 호출되는 함수
+function updateMemberCp(username, newCp) {
+    if (!currentUser || !['메인 관리자', '마스터', '부마스터'].includes(currentUser.role)) {
+        return alert("관리자 권한이 없습니다.");
+    }
+
+    const targetMember = state.members.find(m => m.username === username);
+    if (targetMember) {
+        targetMember.cp = parseInt(newCp) || 0;
+        
+        // 계정 정보(accounts)에도 전투력이 있다면 함께 동기화
+        if (state.accounts && state.accounts[username]) {
+            state.accounts[username].cp = targetMember.cp;
+        }
+
+        // 파이어베이스(Firestore)에 즉시 저장 및 실시간 동기화 트리거
+        saveStateToFirestore();
+        renderApp();
+    }
+}
+
+// HTML 등 외부에서 호출할 수 있도록 전역 등록
+window.updateMemberCp = updateMemberCp;
