@@ -105,35 +105,6 @@ window.addEventListener('DOMContentLoaded', () => {
     }, 1000);
 });
 
-
-// 웹페이지가 처음 로드될 때 실행 (파이어베이스 실시간 데이터 동기화 또는 로컬 스토리지 연동)
-window.addEventListener('DOMContentLoaded', () => {
-    if (window.signInAnonymously && window.auth) {
-        window.signInAnonymously(window.auth).then(() => {
-            window.onSnapshot(window.dbDocRef, (snapshot) => {
-                if (snapshot.exists()) {
-                    state = { ...state, ...snapshot.data() };
-                    ensureMainAdminExists();
-                    renderApp();
-                } else {
-                    ensureMainAdminExists();
-                    saveStateToFirestore();
-                }
-            });
-        }).catch(() => {
-            const localData = localStorage.getItem("dokdo_state");
-            if (localData) state = JSON.parse(localData);
-            ensureMainAdminExists();
-            renderApp();
-        });
-    }
-    
-    // ⏱️ 1초마다 남은 출석 카운트다운 타이머 UI 실시간 갱신
-    setInterval(() => {
-        if (currentUser) renderAttendance();
-    }, 1000);
-});
-
 // 현재 상태 데이터를 파이어베이스(또는 브라우저 로컬 스토리지)에 저장하는 함수
 function saveStateToFirestore() {
     if (window.setDoc && window.dbDocRef) {
