@@ -5,7 +5,7 @@
 // 현재 로그인한 사용자 정보 저장 변수
 let currentUser = null;
 
-// 앱 전체에서 사용하는 데이터 상태 (members.js의 clanData를 기본값으로 연동)
+// 앱 전체에 서 사용하는 데이터 상태 (members.js의 clanData를 기본값으로 연동)
 let state = window.clanData || {
     members: [],
     notices: [],
