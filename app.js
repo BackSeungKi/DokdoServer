@@ -46,6 +46,54 @@ function ensureMainAdminExists() {
     }
 }
 
+// 📌 [수정] 페이지 로드 시 기존 데이터 병합 및 초기화
+window.addEventListener('DOMContentLoaded', () => {
+    // 1. 먼저 로컬스토리지에 저장된 데이터가 있다면 병합
+    const localData = localStorage.getItem("dokdo_state");
+    if (localData) {
+        try {
+            const parsed = JSON.parse(localData);
+            state = { ...state, ...parsed };
+        } catch (e) {
+            console.error("로컬 데이터 로드 실패", e);
+        }
+    }
+
+    // 2. 파이어베이스 연동 처리
+    if (window.signInAnonymously && window.auth) {
+        window.signInAnonymously(window.auth).then(() => {
+            if (window.onSnapshot && window.dbDocRef) {
+                window.onSnapshot(window.dbDocRef, (snapshot) => {
+                    if (snapshot.exists()) {
+                        // DB 데이터와 현재 데이터 병합
+                        state = { ...state, ...snapshot.data() };
+                        ensureMainAdminExists();
+                        renderApp();
+                    } else {
+                        ensureMainAdminExists();
+                        saveStateToFirestore();
+                    }
+                });
+            } else {
+                ensureMainAdminExists();
+                renderApp();
+            }
+        }).catch(() => {
+            ensureMainAdminExists();
+            renderApp();
+        });
+    } else {
+        ensureMainAdminExists();
+        renderApp();
+    }
+
+    // ⏱️ 1초마다 남은 출석 카운트다운 타이머 UI 실시간 갱신
+    setInterval(() => {
+        if (currentUser) renderAttendance();
+    }, 1000);
+});
+
+
 // 웹페이지가 처음 로드될 때 실행 (파이어베이스 실시간 데이터 동기화 또는 로컬 스토리지 연동)
 window.addEventListener('DOMContentLoaded', () => {
     if (window.signInAnonymously && window.auth) {
