@@ -46,6 +46,18 @@ function ensureMainAdminExists() {
     }
 }
 
+// ==========================================
+// 1. 파이어베이스 설정 및 초기화 (여기에 붙여넣기)
+// ==========================================
+const firebaseConfig = {
+  apiKey: "AIzaSyBg40c7gp4tPT0eRVQc6AL1L9ja1M3R-zg",
+  authDomain: "dokdo-clan-system.firebaseapp.com",
+  projectId: "dokdo-clan-system",
+  storageBucket: "dokdo-clan-system.firebasestorage.app",
+  messagingSenderId: "979474507123",
+  appId: "1:979474507123:web:23f1c5f2daea2512db9106"
+};
+
 // 📌 [수정] 페이지 로드 시 기존 데이터 병합 및 초기화
 window.addEventListener('DOMContentLoaded', () => {
     // 1. 먼저 로컬스토리지에 저장된 데이터가 있다면 병합
