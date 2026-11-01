@@ -244,6 +244,20 @@
                     <span class="text-xs text-gold font-semibold">각 항목별 관리자 오픈 후 출석 가능</span>
                 </div>
 
+                <!-- index.html 내부의 적절한 위치 (예: 상단 네비게이션 바 또는 대시보드 메인 영역 상단) -->
+                <div id="controlPanel" class="flex items-center space-x-2">
+                    
+                    <!-- 1. 기존 오픈/잠금 버튼 (관리자만 보이게 class에 'hidden'을 주거나 JS로 제어) -->
+                    <button id="clanOpenToggleBtn" class="hidden px-3 py-1.5 rounded-lg text-xs font-semibold border transition">
+                        🔒 클랜 잠금중
+                    </button>
+                
+                    <!-- 2. ✨ 권한 상관없이 모든 클랜원에게 항상 보이는 '출석하기' 버튼 -->
+                    <button onclick="handleAttendanceClick()" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-cyanAccent/20 border border-cyanAccent text-cyanAccent hover:bg-cyanAccent hover:text-darkBg transition flex items-center space-x-1">
+                        <span>📅 출석하기</span>
+                    </button>
+                </div>
+                
                 <div class="space-y-6" id="attendanceContainer">
                     <!-- 1. 게헨나 보스 -->
                     <div class="bg-cardBg p-5 rounded-lg border border-gray-800 space-y-3">
