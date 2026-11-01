@@ -50,7 +50,7 @@ function ensureMainAdminExists() {
     }
 }
 
-// 📌 페이지 로드 시 파이어베이스 익명 로그인 및 실시간 동기화(onSnapshot) 연동
+// 📌 페이지 로드 시 파이어베이스 익명 로 그인 및 실시간 동기화(onSnapshot) 연동
 window.addEventListener('DOMContentLoaded', () => {
     const localData = localStorage.getItem("dokdo_state");
     if (localData) {
