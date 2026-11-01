@@ -640,3 +640,28 @@ function updateMemberCp(username, newCp) {
 
 // HTML 등 외부에서 호출할 수 있도록 전역 등록
 window.updateMemberCp = updateMemberCp;
+
+// 📌 권한에 따라 상단 컨트롤 버튼 동적 렌더링
+    const controlContainer = document.getElementById('dynamicControlButton');
+    if (controlContainer) {
+        const isClanOpen = state.isClanOpen; // 혹은 각 항목별 오픈 상태
+        
+        if (canManage) {
+            // 관리자에게는 오픈/잠금 버튼 표시
+            controlContainer.innerHTML = `
+                <button onclick="toggleClanOpenState()" class="px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${
+                    isClanOpen ? 'bg-red-900/30 border-red-600 text-red-400' : 'bg-green-900/30 border-green-600 text-green-400'
+                }">
+                    ${isClanOpen ? '🔓 클랜 오픈중 (잠그기)' : '🔒 클랜 잠금중 (열기)'}
+                </button>
+            `;
+        } else {
+            // 일반 클랜원에게는 '출석하기' 버튼 표시
+            controlContainer.innerHTML = `
+                <button onclick="handleAttendanceWithTopInput()" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-cyanAccent/20 border border-cyanAccent text-cyanAccent hover:bg-cyanAccent hover:text-darkBg transition">
+                    📅 출석하기
+                </button>
+            `;
+        }
+    }
+
