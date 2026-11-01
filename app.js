@@ -115,11 +115,11 @@ async function handleSignup() {
     const defaultRole = '일반';
 
     state.accounts = state.accounts || {};
-    state.accounts[id] = { passwordHash: pwHash, role: defaultRole, class: cls, cp: cp };
+    state.accounts[id] = { passwordHash: pwHash, role: defaultRole, class: cls };
 
     state.members = state.members || [];
     if (!state.members.some(m => m.username === id)) {
-        state.members.push({ username: id, class: cls, cp: cp, role: defaultRole });
+        state.members.push({ username: id, class: cls, role: defaultRole });
     }
 
     saveStateToFirestore();
