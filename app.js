@@ -408,22 +408,26 @@ function renderApp() {
             <tr class="hover:bg-gray-800/50">
                 <td class="p-3 font-bold text-white">${m.username}</td>
                 <td class="p-3">${m.class}</td>
-                <td class="p-3 font-mono text-gold">${(m.cp || 0).toLocaleString()}</td>
+                <td class="p-3 font-mono text-gold">
+                    ${canManage && m.username !== 'seungki' ? `
+                        <input type="number" value="${m.cp || 0}" onchange="updateMemberCp('${m.username}', this.value)" class="w-28 bg-darkBg border border-gray-700 rounded p-1 text-xs text-gold outline-none focus:border-cyanAccent">
+                    ` : `<span>${(m.cp || 0).toLocaleString()}</span>`}
+                </td>
                 <td class="p-3 text-xs">
                     <span class="${badgeColor} px-2 py-1 rounded border font-semibold">${m.role}</span>
                 </td>
                 ${canManage ? `
                     <td class="p-3 text-right space-x-2">
-                        ${isMainAdmin && m.username !== 'seungki' ? `
+                        ${m.username !== 'seungki' ? `
                             <select onchange="changeMemberRole('${m.username}', this.value)" class="text-xs border border-gray-700 rounded p-1 outline-none">
                                 <option value="" disabled selected>등급 변경</option>
-                                <option value="마스터">2순위: 마스터 (1명)</option>
-                                <option value="부마스터">3순위: 부마스터 (최대 2명)</option>
-                                <option value="정예">4순위: 정예</option>
-                                <option value="일반">5순위: 일반</option>
+                                <option value="마스터">마스터 (1명)</option>
+                                <option value="부마스터">부마스터 (최대 2명)</option>
+                                <option value="정예">정예</option>
+                                <option value="일반">일반</option>
                             </select>
-                            <button onclick="deleteMember('${m.username}')" class="text-xs text-red-400 hover:text-red-300 ml-1">삭제</button>
-                        ` : `<span class="text-xs text-gray-500">${m.username === 'seungki' ? '최고 관리자' : '조회 전용'}</span>`}
+                            ${isMainAdmin ? `<button onclick="deleteMember('${m.username}')" class="text-xs text-red-400 hover:text-red-300 ml-1">삭제</button>` : ''}
+                        ` : `<span class="text-xs text-gray-500">최고 관리자</span>`}
                     </td>
                 ` : ''}
             </tr>
