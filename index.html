@@ -244,6 +244,22 @@
                     <span class="text-xs text-gold font-semibold">각 항목별 관리자 오픈 후 출석 가능</span>
                 </div>
 
+                <!-- 상단 비밀번호 입력 및 제어 패널 영역 -->
+                <div id="topControlPanel" class="flex items-center space-x-2 bg-darkCard p-3 rounded-xl border border-gray-800 mb-4">
+                    <div class="flex items-center space-x-1">
+                        <span class="text-xs text-gray-400">출석 비번:</span>
+                        <input type="password" id="clanPasswordInput" placeholder="비밀번호 입력" 
+                            class="bg-darkBg border border-gray-700 rounded p-1.5 text-xs text-white outline-none w-28 focus:border-cyanAccent">
+                    </div>
+                
+                    <!-- 
+                      ※ 참고: 이 부분은 자바스크립트(renderApp 등) 안에서 
+                      관리자냐 일반 유저냐에 따라 버튼을 다르게 렌더링해주거나, 
+                      아래처럼 간단하게 JS 함수로 그려줄 수 있습니다.
+                    -->
+                    <div id="dynamicControlButton"></div>
+                </div>
+                
                 <!-- index.html 내부의 적절한 위치 (예: 상단 네비게이션 바 또는 대시보드 메인 영역 상단) -->
                 <div id="controlPanel" class="flex items-center space-x-2">
                     
