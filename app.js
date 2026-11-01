@@ -19,6 +19,16 @@ async function sha256(str) {
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+const firebaseConfig = {
+  apiKey: "AIzaSyBg40c7gp4tPT0eRVQc6AL1L9ja1M3R-zg",
+  authDomain: "dokdo-clan-system.firebaseapp.com",
+  projectId: "dokdo-clan-system",
+  storageBucket: "dokdo-clan-system.firebasestorage.app",
+  messagingSenderId: "979474507123",
+  appId: "1:979474507123:web:23f1c5f2daea2512db9106",
+  measurementId: "G-3GQ7SY29X0"
+};
+
 function ensureMainAdminExists() {
     state = state || {};
     state.accounts = state.accounts || {};
