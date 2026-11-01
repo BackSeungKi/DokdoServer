@@ -295,6 +295,55 @@ function renderAttendance() {
     });
 }
 
+// 📌 출석 체크 버튼을 눌렀을 때 실행되는 함수
+function handleAttendanceClick() {
+    if (!currentUser) {
+        return alert("로그인 후 이용해주세요.");
+    }
+
+    // 만약 클랜 설정에 비밀번호가 걸려 있다면
+    if (state.clanPassword && state.clanPassword.trim() !== "") {
+        // 메인 관리자나 권한이 있는 관리자는 패스할 수 있게 하거나, 모두 입력하게 할 수 있습니다.
+        // 여기서는 관리자가 아닐 경우에 비밀번호를 묻도록 설정합니다. (관리자도 확인용으로 입력하게 하려면 권한 체크를 빼셔도 됩니다.)
+        const isManager = ['메인 관리자', '마스터', '부마스터'].includes(currentUser.role);
+        
+        if (!isManager) {
+            const inputPw = prompt("클랜 출석 비밀번호를 입력해주세요:");
+            if (inputPw === null) return; // 취소 누른 경우
+            
+            if (inputPw !== state.clanPassword) {
+                return alert("비밀번호가 일치하지 않습니다!");
+            }
+        }
+    }
+
+    // 비밀번호가 맞거나 설정되어 있지 않다면 정상적으로 출석 체크 진행
+    processAttendance();
+}
+
+// 📌 실제 출석 데이터 처리 및 파이어베이스 저장 함수
+function processAttendance() {
+    const today = new Date().toISOString().split('T')[0]; // 오늘 날짜 (YYYY-MM-DD)
+    
+    if (!state.attendance) state.attendance = {};
+    if (!state.attendance[today]) state.attendance[today] = [];
+
+    // 이미 출석했는지 확인
+    if (state.attendance[today].includes(currentUser.username)) {
+        return alert("이미 오늘 출석체크를 완료하셨습니다!");
+    }
+
+    // 출석 명단에 추가
+    state.attendance[today].push(currentUser.username);
+
+    // 파이어베이스에 저장 및 화면 갱신
+    saveStateToFirestore();
+    renderApp();
+    alert("출석체크가 완료되었습니다!");
+}
+
+window.handleAttendanceClick = handleAttendanceClick;
+
 
 // ==========================================
 // 📌 4. 클랜원 관리 및 공지사항 기능
