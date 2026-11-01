@@ -46,17 +46,27 @@ function ensureMainAdminExists() {
     }
 }
 
-// ==========================================
-// 1. 파이어베이스 설정 및 초기화 (여기에 붙여넣기)
-// ==========================================
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyBg40c7gp4tPT0eRVQc6AL1L9ja1M3R-zg",
   authDomain: "dokdo-clan-system.firebaseapp.com",
   projectId: "dokdo-clan-system",
   storageBucket: "dokdo-clan-system.firebasestorage.app",
   messagingSenderId: "979474507123",
-  appId: "1:979474507123:web:23f1c5f2daea2512db9106"
+  appId: "1:979474507123:web:23f1c5f2daea2512db9106",
+  measurementId: "G-3GQ7SY29X0"
 };
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
 
 // 📌 [수정] 페이지 로드 시 기존 데이터 병합 및 초기화
 window.addEventListener('DOMContentLoaded', () => {
