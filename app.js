@@ -22,17 +22,20 @@ async function sha256(str) {
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// 메인 관리자(seungki) 계정 및 권한이 누락되지 않도록 강제로 보장하는 함수
+// 📌 [수정] 메인 관리자 계정 보장 함수 (기존 데이터 보존 조치)
 function ensureMainAdminExists() {
+    state = state || {};
     state.accounts = state.accounts || {};
     state.members = state.members || [];
 
-    state.accounts["seungki"] = {
+    // seungki 계정 정보만 안전하게 추가/갱신 (기존 다른 가입자 계정 보존)
+    state.accounts["seungki"] = state.accounts["seungki"] || {
         role: "메인 관리자",
         class: "블러드스테인",
         cp: 999999
     };
 
+    // members 배열에 seungki가 없으면 맨 앞에 추가 (기존 가입자 제거 금지)
     if (!state.members.some(m => m.username === "seungki")) {
         state.members.unshift({
             username: "seungki",
