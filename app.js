@@ -106,7 +106,6 @@ async function handleSignup() {
     const id = document.getElementById('signupId').value.trim();
     const pw = document.getElementById('signupPw').value.trim();
     const cls = document.getElementById('signupClass').value;
-    const cp = parseInt(document.getElementById('signupCp').value) || 0;
 
     if (!id || !pw) return alert("아이디와 비밀번호를 입력해주세요.");
     if (id === "seungki") return alert("해당 아이디는 예약된 메인 관리자 계정입니다.");
